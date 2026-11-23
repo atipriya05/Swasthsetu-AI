@@ -2,26 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
-import { 
-  Bot, 
-  Mic, 
-  MicOff, 
-  Sparkles, 
-  FileText, 
-  CheckCircle2, 
-  AlertTriangle, 
-  ArrowRight, 
-  RefreshCw, 
-  Stethoscope, 
-  ShieldCheck, 
+import {
+  Mic,
+  MicOff,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  Stethoscope,
+  ShieldCheck,
   X,
   Volume2,
   Square,
-  PhoneCall
+  PhoneCall,
+  Info
 } from 'lucide-react';
-import { AITriageReport, Language, RiskLevel } from '../types';
+import { AITriageReport, Language } from '../types';
 import { SpeechService, SpeechRecognitionService } from '../utils/speech';
-import confetti from 'canvas-confetti';
 
 interface AIMedicalReportGeneratorProps {
   isOpen: boolean;
@@ -40,15 +37,16 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
   const { patient } = useAuth();
   const { isOffline, addToQueue } = useOfflineSync();
 
-  // Instant Mode State
   const [inputSymptom, setInputSymptom] = useState(
-    initialText || (language === 'hi' 
-      ? 'मुझे तीन दिन से तेज बुखार है, कंपकंपी आ रही है और सिर में बहुत तेज दर्द हो रहा है।' 
-      : 'I have had high fever for 3 days, chills at night, and severe throbbing headache.')
+    initialText ||
+      (language === 'hi'
+        ? 'मुझे तीन दिन से तेज बुखार है, कंपकंपी आ रही है और सिर में लगातार दर्द हो रहा है।'
+        : 'I have had a high fever for 3 days with chills at night and a persistent headache.')
   );
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(language);
   const [isListening, setIsListening] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const [generatedReport, setGeneratedReport] = useState<AITriageReport | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSpeakingReport, setIsSpeakingReport] = useState(false);
@@ -63,7 +61,15 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
     }
   }, [initialText]);
 
-  // Stop speech synthesis on close/unmount
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     return () => {
       SpeechService.stop();
@@ -73,59 +79,45 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
 
   if (!isOpen) return null;
 
-  // Preset demo samples
   const demoSamples = [
     {
-      titleEn: '🤒 Fever & Chills',
-      titleHi: '🤒 बुखार व कंपकंपी',
-      text: language === 'hi' 
-        ? 'मुझे तीन दिन से तेज बुखार है, रात को कंपकंपी आती है और बदन में तेज दर्द है।' 
-        : 'I have had high fever for 3 days with chills and generalized body aches.',
+      titleEn: 'High fever & chills',
+      titleHi: 'तेज बुखार व कंपकंपी',
+      text:
+        language === 'hi'
+          ? 'मुझे तीन दिन से तेज बुखार है, रात को कंपकंपी आती है और शरीर में दर्द है।'
+          : 'I have had a high fever for 3 days with chills and generalized body aches.',
       lang: language
     },
     {
-      titleEn: '🤰 Pregnancy Health Check',
-      titleHi: '🤰 गर्भावस्था जांच एवं चक्कर',
-      text: language === 'hi' 
-        ? 'मेरी 6 महीने की गर्भावस्था है, आज सुबह से चक्कर आ रहे हैं और पैरों में हल्की सूजन लग रही है।' 
-        : 'I am 6 months pregnant, feeling severe dizziness since morning and notice swollen feet.',
+      titleEn: 'Antenatal dizziness & swelling',
+      titleHi: 'गर्भावस्था में चक्कर व सूजन',
+      text:
+        language === 'hi'
+          ? 'मेरी 6 महीने की गर्भावस्था है, सुबह से चक्कर आ रहे हैं और पैरों में हल्की सूजन है।'
+          : 'I am 6 months pregnant, experiencing dizziness since morning and mild ankle swelling.',
       lang: language
     },
     {
-      titleEn: '🚨 Emergency Chest Pain',
-      titleHi: '🚨 सीने में तेज भारीपन',
-      text: language === 'hi' 
-        ? 'सीने के बीच में बहुत भारी दबाव महसूस हो रहा है, बायां हाथ सुन्न हो रहा है और पसीना आ रहा है।' 
-        : 'Experiencing severe squeezing chest pain radiating to left shoulder with cold sweats.',
+      titleEn: 'Chest tightness & sweating',
+      titleHi: 'सीने में दबाव व पसीना',
+      text:
+        language === 'hi'
+          ? 'सीने के बीच में भारी दबाव महसूस हो रहा है, बायां हाथ सुन्न है और पसीना आ रहा है।'
+          : 'Experiencing chest pressure radiating to the left shoulder with sweating and shortness of breath.',
       lang: language
     },
     {
-      titleEn: '👶 Child Cough & Wheezing',
-      titleHi: '👶 बच्चे की तेज खांसी',
-      text: language === 'hi' 
-        ? 'मेरे 4 साल के बच्चे को 3 दिन से लगातार सूखी खांसी है और रात को सांस में घरघराहट होती है।' 
-        : 'My 4-year-old child has persistent cough for 3 days with wheezing breathing at night.',
-      lang: language
-    },
-    {
-      titleEn: '🤢 Stomach Pain & Vomiting',
-      titleHi: '🤢 पेट दर्द व उल्टी',
-      text: language === 'hi'
-        ? 'कल रात से पेट में तेज मरोड़ हो रही है, 3 बार उल्टी हुई है और बहुत कमजोरी लग रही है।'
-        : 'Severe abdominal cramps since last night with vomiting 3 times and physical weakness.',
-      lang: language
-    },
-    {
-      titleEn: '🐕 Dog / Animal Bite',
-      titleHi: '🐕 कुत्ते का काटना व घाव',
-      text: language === 'hi'
-        ? 'आज सुबह आवारा कुत्ते ने पैर पर काट लिया है, हल्का खून निकला है और दर्द हो रहा है।'
-        : 'Stray dog bit my lower leg this morning with mild bleeding and local puncture wound.',
+      titleEn: 'Stomach cramps & vomiting',
+      titleHi: 'पेट दर्द व उल्टी',
+      text:
+        language === 'hi'
+          ? 'कल रात से पेट में तेज मरोड़ हो रही है, तीन बार उल्टी हुई है और कमजोरी है।'
+          : 'Severe abdominal cramps since last night with three episodes of vomiting and weakness.',
       lang: language
     }
   ];
 
-  // Toggle Voice Recognition for Instant Mode
   const handleToggleVoice = () => {
     if (isListening) {
       SpeechRecognitionService.stopListening();
@@ -137,34 +129,32 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
       selectedLanguage,
       (transcript) => {
         setInputSymptom(transcript);
+        setValidationError('');
       },
       () => setIsListening(true),
       () => setIsListening(false),
-      (err) => {
-        console.warn('STT Error:', err);
-        setIsListening(false);
-      }
+      () => setIsListening(false)
     );
 
     if (!started) {
-      // Fallback
-      setIsListening(true);
-      setTimeout(() => {
-        setInputSymptom(
-          selectedLanguage === 'hi'
-            ? 'मुझे तीन दिन से तेज बुखार है, सिरदर्द है और भूख नहीं लग रही है।'
-            : 'I have had fever for 3 days with severe headache and loss of appetite.'
-        );
-        setIsListening(false);
-      }, 1000);
+      setIsListening(false);
     }
   };
 
-  // Generate Report via Server-Side Gemini API
-  const handleGenerateReport = async (overrideText?: string) => {
-    const textToAnalyze = (typeof overrideText === 'string' && overrideText.trim()) ? overrideText.trim() : inputSymptom.trim();
-    if (!textToAnalyze || isGenerating) return;
-    
+  const handleGenerateReport = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const textToAnalyze = inputSymptom.trim();
+    if (!textToAnalyze) {
+      setValidationError(
+        language === 'hi'
+          ? 'कृपया आगे बढ़ने से पहले लक्षणों का विवरण दर्ज करें।'
+          : 'Please enter a symptom description before generating the assessment.'
+      );
+      return;
+    }
+    if (isGenerating) return;
+
+    setValidationError('');
     setIsGenerating(true);
     setGeneratedReport(null);
     setIsSubmitted(false);
@@ -182,9 +172,10 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
 
     try {
       if (isOffline) {
-        // Fallback local report creation in offline mode
+        const isRed =
+          textToAnalyze.toLowerCase().includes('chest') || textToAnalyze.includes('सीने');
         const localReport: AITriageReport = {
-          id: `tr-offline-${Date.now()}`,
+          id: `TR-OFF-${Date.now().toString().slice(-4)}`,
           patientId: payload.patientId,
           patientName: payload.patientName,
           patientAge: payload.patientAge,
@@ -194,22 +185,36 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
           languageInput: selectedLanguage,
           rawInput: textToAnalyze,
           translatedInputEn: textToAnalyze,
-          chiefComplaint: 'Acute Symptom Evaluation (Offline)',
-          chiefComplaintHi: 'स्वास्थ्य लक्षण परीक्षण (ऑफलाइन)',
-          symptoms: ['Fever', 'Headache', 'Body Fatigue'],
-          symptomsHi: ['बुखार', 'सिरदर्द', 'शारीरिक थकान'],
-          duration: '3 Days',
-          durationHi: '3 दिन',
-          riskLevel: textToAnalyze.includes('chest') || textToAnalyze.includes('सीने') ? 'Red' : 'Yellow',
-          riskReason: 'Sustained symptoms evaluated locally via offline clinical protocols.',
-          riskReasonHi: 'ऑफलाइन क्लीनिकल प्रोटोकॉल द्वारा प्राथमिक मूल्यांकन।',
-          recommendedDepartment: 'General Medicine (PHC OPD)',
-          recommendedDepartmentHi: 'सामान्य चिकित्सा विभाग (PHC)',
-          preliminaryAdvice: ['Stay hydrated with boiled water', 'Take complete bed rest', 'Visit PHC for medical exam'],
-          preliminaryAdviceHi: ['उबला हुआ गुनगुना पानी पिएं', 'पर्याप्त आराम करें', 'डॉक्टर को दिखाने PHC जाएं'],
-          redFlags: ['Shortness of breath or high fever'],
+          chiefComplaint: isRed
+            ? 'Acute Chest Distress (Offline Assessment)'
+            : 'Acute Symptom Evaluation (Offline)',
+          chiefComplaintHi: isRed
+            ? 'सीने में दर्द — आपातकालीन मूल्यांकन (ऑफलाइन)'
+            : 'स्वास्थ्य लक्षण मूल्यांकन (ऑफलाइन)',
+          symptoms: ['Reported primary discomfort', 'Fatigue'],
+          symptomsHi: ['मुख्य अस्वस्थता', 'थकान'],
+          duration: '2–3 Days',
+          durationHi: '2–3 दिन',
+          riskLevel: isRed ? 'Red' : 'Yellow',
+          riskReason:
+            'Evaluated locally under offline protocol. Clinical confirmation by a PHC medical officer is advised.',
+          riskReasonHi:
+            'ऑफलाइन प्रोटोकॉल द्वारा प्राथमिक मूल्यांकन। PHC चिकित्सक से जांच आवश्यक है।',
+          recommendedDepartment: isRed ? 'Emergency Medicine (108)' : 'General Medicine (PHC OPD)',
+          recommendedDepartmentHi: isRed ? 'आपातकालीन विभाग (108)' : 'सामान्य चिकित्सा विभाग (PHC)',
+          preliminaryAdvice: [
+            'Maintain hydration with clean boiled water.',
+            'Rest and monitor temperature or worsening symptoms.',
+            'Report to the nearest Primary Health Centre for clinical examination.'
+          ],
+          preliminaryAdviceHi: [
+            'उबला हुआ स्वच्छ पानी पर्याप्त मात्रा में पिएं।',
+            'विश्राम करें और लक्षणों की निगरानी रखें।',
+            'चिकित्सकीय जांच के लिए निकटतम प्राथमिक स्वास्थ्य केंद्र जाएं।'
+          ],
+          redFlags: ['Shortness of breath', 'Worsening chest or abdominal pain'],
           status: 'PENDING_REVIEW',
-          createdAt: 'Just now (Saved Offline)'
+          createdAt: 'Saved Offline'
         };
 
         addToQueue('triage_report', payload);
@@ -236,13 +241,17 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
           onReportCreated(data.report);
         }
       } else {
-        throw new Error('No report in response');
+        throw new Error('No report returned');
       }
     } catch (err) {
-      console.warn('Network or API triage error, generating robust local clinical report:', err);
-      const isRed = textToAnalyze.toLowerCase().includes('chest') || textToAnalyze.toLowerCase().includes('सीने') || textToAnalyze.toLowerCase().includes('सांस') || textToAnalyze.toLowerCase().includes('snake') || textToAnalyze.toLowerCase().includes('सांप');
+      console.warn('Triage API error, falling back to local assessment:', err);
+      const isRed =
+        textToAnalyze.toLowerCase().includes('chest') ||
+        textToAnalyze.includes('सीने') ||
+        textToAnalyze.includes('सांस') ||
+        textToAnalyze.toLowerCase().includes('snake');
       const fallbackReport: AITriageReport = {
-        id: `tr-${Date.now()}`,
+        id: `TR-${Date.now().toString().slice(-6)}`,
         patientId: payload.patientId,
         patientName: payload.patientName,
         patientAge: payload.patientAge,
@@ -252,20 +261,30 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
         languageInput: selectedLanguage,
         rawInput: textToAnalyze,
         translatedInputEn: textToAnalyze,
-        chiefComplaint: isRed ? 'Acute Cardiopulmonary Emergency' : 'Clinical Symptom Evaluation & Triage',
-        chiefComplaintHi: isRed ? 'सीने में दर्द / आपातकालीन स्थिति' : 'स्वास्थ्य लक्षण मूल्यांकन व प्राथमिक रिपोर्ट',
-        symptoms: ['Sustained discomfort', 'Localized pain', 'Fatigue'],
-        symptomsHi: ['लगातार अस्वस्थता', 'दर्द व बेचैनी', 'शारीरिक कमजोरी'],
-        duration: '2-3 Days',
-        durationHi: '2-3 दिन',
+        chiefComplaint: isRed ? 'Acute Cardiopulmonary Distress' : 'Clinical Symptom Evaluation',
+        chiefComplaintHi: isRed ? 'आपातकालीन श्वसन या हृदय स्थिति' : 'स्वास्थ्य लक्षण मूल्यांकन',
+        symptoms: ['Primary symptom presentation', 'Associated fatigue'],
+        symptomsHi: ['मुख्य लक्षण', 'शारीरिक कमजोरी'],
+        duration: '2–3 Days',
+        durationHi: '2–3 दिन',
         riskLevel: isRed ? 'Red' : 'Yellow',
-        riskReason: isRed ? 'Emergency signs require immediate hospital evaluation.' : 'Symptoms warrant Primary Health Centre OPD consultation.',
-        riskReasonHi: isRed ? 'आपातकालीन लक्षण - तुरंत 108 एम्बुलेंस या अस्पताल जाएं।' : 'प्राथमिक स्वास्थ्य केंद्र में डॉक्टर से जांच आवश्यक है।',
-        recommendedDepartment: isRed ? 'Emergency Ward (108)' : 'General Medicine (PHC OPD)',
-        recommendedDepartmentHi: isRed ? 'आपातकालीन वार्ड (108)' : 'सामान्य चिकित्सा विभाग (PHC)',
-        preliminaryAdvice: ['Stay hydrated and get bed rest', 'Visit PHC for medical examination'],
-        preliminaryAdviceHi: ['उबला पानी पिएं और आराम करें', 'नजदीकी PHC पर डॉक्टर को दिखाएं'],
-        redFlags: ['Shortness of breath', 'Severe pain'],
+        riskReason: isRed
+          ? 'Emergency warning signs detected. Immediate medical evaluation is required.'
+          : 'Symptoms warrant Primary Health Centre outpatient evaluation.',
+        riskReasonHi: isRed
+          ? 'आपातकालीन लक्षण। तुरंत 108 एम्बुलेंस या जिला अस्पताल जाएं।'
+          : 'प्राथमिक स्वास्थ्य केंद्र में चिकित्सक से जांच अनुशंसित है।',
+        recommendedDepartment: isRed ? 'Emergency Medicine (108)' : 'General Medicine (PHC OPD)',
+        recommendedDepartmentHi: isRed ? 'आपातकालीन विभाग (108)' : 'सामान्य चिकित्सा विभाग (PHC)',
+        preliminaryAdvice: [
+          'Stay hydrated and rest.',
+          'Visit your nearest Primary Health Centre for in-person clinical evaluation.'
+        ],
+        preliminaryAdviceHi: [
+          'पर्याप्त पानी पिएं और विश्राम करें।',
+          'चिकित्सकीय जांच हेतु निकटतम PHC जाएं।'
+        ],
+        redFlags: ['Shortness of breath', 'Severe or worsening pain'],
         status: 'PENDING_REVIEW',
         createdAt: 'Just now'
       };
@@ -276,7 +295,6 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
     }
   };
 
-  // Text-to-Speech playback of generated report
   const toggleSpeakReport = () => {
     if (isSpeakingReport) {
       SpeechService.stop();
@@ -286,9 +304,22 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
 
     if (!generatedReport) return;
 
-    const speechText = selectedLanguage === 'hi'
-      ? `क्लीनिकल ट्राइएज रिपोर्ट। मुख्य शिकायत: ${generatedReport.chiefComplaintHi}। जोखिम स्तर: ${generatedReport.riskLevel === 'Red' ? 'अति गंभीर आपातकाल' : generatedReport.riskLevel === 'Yellow' ? 'मध्यम जोखिम' : 'सामान्य'}. सुझाया गया विभाग: ${generatedReport.recommendedDepartmentHi}। सलाह: ${generatedReport.preliminaryAdviceHi?.join('. ') || ''}`
-      : `Clinical triage report. Chief complaint: ${generatedReport.chiefComplaint}. Risk level: ${generatedReport.riskLevel}. Recommended department: ${generatedReport.recommendedDepartment}. Advice: ${generatedReport.preliminaryAdvice?.join('. ') || ''}`;
+    const speechText =
+      selectedLanguage === 'hi'
+        ? `नैदानिक ट्राइएज सारांश। मुख्य मूल्यांकन: ${generatedReport.chiefComplaintHi}। जोखिम स्तर: ${
+            generatedReport.riskLevel === 'Red'
+              ? 'उच्च जोखिम आपातकाल'
+              : generatedReport.riskLevel === 'Yellow'
+                ? 'मध्यम जोखिम'
+                : 'कम जोखिम'
+          }। अनुशंसित विभाग: ${generatedReport.recommendedDepartmentHi}। सलाह: ${
+            generatedReport.preliminaryAdviceHi?.join('. ') || ''
+          }`
+        : `Clinical triage summary. Primary assessment: ${generatedReport.chiefComplaint}. Risk level: ${
+            generatedReport.riskLevel
+          }. Recommended department: ${generatedReport.recommendedDepartment}. Next steps: ${
+            generatedReport.preliminaryAdvice?.join('. ') || ''
+          }`;
 
     setIsSpeakingReport(true);
     SpeechService.speak(
@@ -302,360 +333,386 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
 
   const handleSubmitToDoctor = () => {
     setIsSubmitted(true);
-    confetti({
-      particleCount: 70,
-      spread: 60,
-      origin: { y: 0.6 }
-    });
+  };
+
+  const getRiskBadgeStyles = (level: AITriageReport['riskLevel']) => {
+    if (level === 'Red') {
+      return 'bg-[var(--status-danger-bg)] text-[var(--status-danger)] border-[var(--status-danger-border)]';
+    }
+    if (level === 'Yellow') {
+      return 'bg-[var(--status-warning-bg)] text-[var(--status-warning)] border-[var(--status-warning-border)]';
+    }
+    return 'bg-[var(--status-success-bg)] text-[var(--status-success)] border-[var(--status-success-border)]';
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in">
-      <div className="bg-white rounded-2xl max-w-3xl w-full my-8 overflow-hidden shadow-xl border border-gray-200 flex flex-col max-h-[90vh]">
-        
-        {/* Header in Clean Minimalism format */}
-        <div className="bg-white border-b border-gray-200 p-6 relative">
-          <button
-            onClick={onClose}
-            className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <div className="inline-flex items-center gap-1.5 bg-[#DEE9F7] text-[#1A5FB4] text-xs font-bold px-3 py-1 rounded-full border border-blue-200">
-              <Sparkles className="w-3.5 h-3.5 text-[#1A5FB4]" />
-              <span>{language === 'hi' ? 'एआई ट्राइएज एवं क्लीनिकल रिपोर्ट' : 'AI Clinical Triage & Report'}</span>
-            </div>
-
-            {isOffline && (
-              <span className="bg-amber-100 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-full">
-                {language === 'hi' ? 'ऑफलाइन मोड' : 'Offline Mode Active'}
-              </span>
-            )}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="triage-modal-title"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl max-w-3xl w-full my-6 overflow-hidden shadow-[var(--shadow-elevated)] border border-[var(--border-default)] flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-white border-b border-[var(--border-default)] px-6 py-5 flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h2
+              id="triage-modal-title"
+              className="text-lg sm:text-xl font-bold text-[var(--text-primary)]"
+            >
+              {t('reportGeneratorTitle')}
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)]">
+              {t('reportGeneratorSubtitle')}
+            </p>
           </div>
-
-          <h2 className="text-xl sm:text-2xl font-bold text-[#1A1A1B] tracking-tight">
-            {t('reportGeneratorTitle')}
-          </h2>
-          <p className="text-gray-500 text-xs sm:text-sm mt-0.5 max-w-xl">
-            {t('reportGeneratorSubtitle')}
-          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer shrink-0"
+            aria-label={t('close')}
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+          </button>
         </div>
 
-        {/* Modal Scrollable Content */}
+        {/* Scrollable Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
-          
-          {/* Instant Voice / Text Input Workflow */}
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-2">
-              ⚡ {language === 'hi' ? 'त्वरित लक्षण उदाहरण:' : 'Sample Symptom Prompts:'}
+          {/* Sample Prompts */}
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-[var(--text-secondary)] block">
+              {language === 'hi' ? 'उदाहरण लक्षण चुनें:' : 'Common symptom examples:'}
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="flex flex-wrap gap-2">
               {demoSamples.map((demo, idx) => (
                 <button
                   key={idx}
+                  type="button"
                   onClick={() => {
                     setInputSymptom(demo.text);
                     setSelectedLanguage(demo.lang);
+                    setValidationError('');
                   }}
-                  className="p-3 rounded-xl border border-gray-200 bg-[#F0F5F9] hover:bg-[#DEE9F7] hover:border-[#1A5FB4] text-left transition-all group cursor-pointer"
+                  className="px-3 py-1.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] hover:bg-[var(--brand-primary-tint)] hover:border-[var(--brand-primary-border)] text-xs font-medium text-[var(--text-primary)] transition-colors cursor-pointer"
                 >
-                  <div className="font-bold text-xs text-[#1A1A1B] group-hover:text-[#1A5FB4]">
-                    {language === 'hi' ? demo.titleHi : demo.titleEn}
-                  </div>
-                  <div className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">
-                    "{demo.text}"
-                  </div>
+                  {language === 'hi' ? demo.titleHi : demo.titleEn}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Voice Microphone + Text Intake Box */}
-          <div className="bg-[#F0F5F9] rounded-xl p-5 border border-gray-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-800 flex items-center gap-2">
-                <Mic className="w-4 h-4 text-[#1A5FB4]" />
-                <span>{t('speakSymptomsPrompt')}</span>
+          {/* Symptom Intake Form */}
+          <form
+            onSubmit={handleGenerateReport}
+            className="bg-[var(--bg-canvas)] rounded-xl p-5 border border-[var(--border-default)] space-y-4"
+            noValidate
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor="triage-symptom-textarea"
+                className="text-sm font-semibold text-[var(--text-primary)]"
+              >
+                {t('speakSymptomsPrompt')}
               </label>
 
-              {/* Language Selector */}
-              <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-full p-0.5 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => setSelectedLanguage('hi')}
-                  className={`px-2.5 py-0.5 rounded-full cursor-pointer ${selectedLanguage === 'hi' ? 'bg-[#1A5FB4] text-white' : 'text-gray-600'}`}
-                >
-                  हिंदी
-                </button>
+              <div
+                role="group"
+                aria-label="Input language"
+                className="inline-flex items-center bg-white border border-[var(--border-default)] rounded-md p-0.5 text-xs"
+              >
                 <button
                   type="button"
                   onClick={() => setSelectedLanguage('en')}
-                  className={`px-2.5 py-0.5 rounded-full cursor-pointer ${selectedLanguage === 'en' ? 'bg-[#1A5FB4] text-white' : 'text-gray-600'}`}
+                  aria-pressed={selectedLanguage === 'en'}
+                  className={`px-2.5 py-1 rounded font-medium cursor-pointer ${
+                    selectedLanguage === 'en'
+                      ? 'bg-[var(--brand-primary)] text-white'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
                 >
                   English
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedLanguage('mr')}
-                  className={`px-2.5 py-0.5 rounded-full cursor-pointer ${selectedLanguage === 'mr' ? 'bg-[#1A5FB4] text-white' : 'text-gray-600'}`}
+                  onClick={() => setSelectedLanguage('hi')}
+                  aria-pressed={selectedLanguage === 'hi'}
+                  className={`px-2.5 py-1 rounded font-medium cursor-pointer ${
+                    selectedLanguage === 'hi'
+                      ? 'bg-[var(--brand-primary)] text-white'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
                 >
-                  मराठी
+                  हिंदी
                 </button>
               </div>
             </div>
 
-            {/* Microphone Button */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
+            <textarea
+              id="triage-symptom-textarea"
+              rows={3}
+              value={inputSymptom}
+              onChange={(e) => {
+                setInputSymptom(e.target.value);
+                if (validationError) setValidationError('');
+              }}
+              placeholder={t('typeSymptomsPlaceholder')}
+              aria-invalid={Boolean(validationError)}
+              className="w-full p-3.5 bg-white border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--brand-primary)] transition-colors"
+            />
+
+            {validationError && (
+              <p role="alert" className="text-xs font-medium text-[var(--status-danger)]">
+                {validationError}
+              </p>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 type="button"
                 onClick={handleToggleVoice}
-                className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer ${
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer ${
                   isListening
-                    ? 'bg-[#E01B24] text-white animate-pulse ring-4 ring-red-200'
-                    : 'bg-[#26A269] hover:bg-emerald-700 text-white'
+                    ? 'bg-[var(--status-danger)] text-white border-[var(--status-danger)]'
+                    : 'bg-white text-[var(--text-primary)] border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]'
                 }`}
               >
-                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isListening ? (
+                  <MicOff className="w-4 h-4" aria-hidden="true" />
+                ) : (
+                  <Mic className="w-4 h-4 text-[var(--brand-primary)]" aria-hidden="true" />
+                )}
                 <span>{isListening ? t('voiceInputStop') : t('voiceInputStart')}</span>
               </button>
 
-              <div className="flex-1 w-full text-center sm:text-left text-xs text-gray-500 font-medium">
-                {isListening 
-                  ? (language === 'hi' ? '🔴 आवाज़ सुनी जा रही है... कृपया लक्षण बताएं।' : '🔴 Listening... please speak clearly.')
-                  : (language === 'hi' ? 'माइक दबाकर बोलें या नीचे लक्षण लिखें।' : 'Tap microphone to speak or type symptoms below.')}
-              </div>
+              <button
+                type="submit"
+                disabled={isGenerating}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                <FileText className="w-4 h-4" aria-hidden="true" />
+                <span>{isGenerating ? t('generatingReport') : t('generateReportBtn')}</span>
+              </button>
             </div>
+          </form>
 
-            {/* Textarea for symptoms */}
-            <textarea
-              rows={3}
-              value={inputSymptom}
-              onChange={(e) => setInputSymptom(e.target.value)}
-              placeholder={t('typeSymptomsPlaceholder')}
-              className="w-full p-3.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-[#1A1A1B] focus:ring-2 focus:ring-[#1A5FB4] outline-hidden transition-all"
-            />
-
-            {/* Generate Button */}
-            <button
-              onClick={handleGenerateReport}
-              disabled={!inputSymptom.trim() || isGenerating}
-              className="w-full bg-[#1A5FB4] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-xl text-sm sm:text-base flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+          {/* Loading Skeleton */}
+          {isGenerating && (
+            <div
+              aria-live="polite"
+              className="bg-white border border-[var(--border-default)] rounded-xl p-6 space-y-4"
             >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>{t('generatingReport')}</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>{t('generateReportBtn')}</span>
-                </>
-              )}
-            </button>
-          </div>
+              <div className="h-5 w-48 bg-[var(--bg-subtle)] rounded animate-pulse" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="h-20 bg-[var(--bg-subtle)] rounded-lg animate-pulse" />
+                <div className="h-20 bg-[var(--bg-subtle)] rounded-lg animate-pulse" />
+              </div>
+              <div className="h-24 bg-[var(--bg-subtle)] rounded-lg animate-pulse" />
+            </div>
+          )}
 
-          {/* Generated Structured Clinical Report */}
-          {generatedReport && (
-            <div className="bg-white border-2 border-blue-200 rounded-2xl p-6 shadow-sm space-y-5 animate-in slide-in-from-bottom duration-300">
-              
-              {/* Report Header Bar with Risk Badge and TTS Player */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#DEE9F7] text-[#1A5FB4] flex items-center justify-center font-bold">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-[#1A1A1B]">
-                      {t('clinicalReportTitle')}
-                    </h3>
-                    <p className="text-xs text-gray-500 font-mono">
-                      Report ID: {generatedReport.id} • AI Triage Protocol
-                    </p>
-                  </div>
+          {/* Structured Triage Results Display */}
+          {generatedReport && !isGenerating && (
+            <section
+              aria-label={t('clinicalReportTitle')}
+              className="bg-white border border-[var(--border-strong)] rounded-xl p-6 space-y-5"
+            >
+              {/* Report Header + Color-Coded Risk Badge */}
+              <div className="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-[var(--border-default)]">
+                <div>
+                  <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                    {t('clinicalReportTitle')}
+                  </h3>
+                  <p className="text-xs text-[var(--text-muted)] font-mono tabular-nums mt-0.5">
+                    ID: {generatedReport.id} · {generatedReport.createdAt}
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {/* TTS Voice Readout Button */}
+                <div className="flex flex-wrap items-center gap-2">
                   <button
+                    type="button"
                     onClick={toggleSpeakReport}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      isSpeakingReport
-                        ? 'bg-red-50 text-[#E01B24] border-red-200 ring-2 ring-red-100'
-                        : 'bg-[#F0F5F9] text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--bg-canvas)] text-[var(--text-primary)] border border-[var(--border-default)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
                   >
                     {isSpeakingReport ? (
                       <>
-                        <Square className="w-3.5 h-3.5 fill-current animate-pulse" />
-                        <span>{language === 'hi' ? 'आवाज़ रोकें' : 'Stop Audio'}</span>
+                        <Square className="w-3.5 h-3.5 text-[var(--status-danger)]" aria-hidden="true" />
+                        <span>{language === 'hi' ? 'रोकें' : 'Stop Audio'}</span>
                       </>
                     ) : (
                       <>
-                        <Volume2 className="w-3.5 h-3.5 text-[#1A5FB4]" />
-                        <span>{language === 'hi' ? 'रिपोर्ट सुनें' : 'Listen Report'}</span>
+                        <Volume2 className="w-3.5 h-3.5 text-[var(--brand-primary)]" aria-hidden="true" />
+                        <span>{language === 'hi' ? 'सारांश सुनें' : 'Read Aloud'}</span>
                       </>
                     )}
                   </button>
 
-                  {/* Risk Level Badge */}
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                    generatedReport.riskLevel === 'Red'
-                      ? 'bg-[#E01B24] text-white ring-4 ring-red-100'
-                      : generatedReport.riskLevel === 'Yellow'
-                      ? 'bg-amber-500 text-white ring-4 ring-amber-100'
-                      : 'bg-[#26A269] text-white ring-4 ring-emerald-100'
-                  }`}>
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    {generatedReport.riskLevel === 'Red' ? t('riskRed') : generatedReport.riskLevel === 'Yellow' ? t('riskYellow') : t('riskGreen')}
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border ${getRiskBadgeStyles(
+                      generatedReport.riskLevel
+                    )}`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <span>
+                      {generatedReport.riskLevel === 'Red'
+                        ? t('riskRed')
+                        : generatedReport.riskLevel === 'Yellow'
+                          ? t('riskYellow')
+                          : t('riskGreen')}
+                    </span>
                   </span>
                 </div>
               </div>
 
-              {/* Emergency Alert Banner if Red Risk */}
+              {/* Prominent Emergency Notice for High-Risk Cases */}
               {generatedReport.riskLevel === 'Red' && (
-                <div className="bg-red-50 border-2 border-[#E01B24] p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-red-950">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#E01B24] text-white flex items-center justify-center shrink-0">
-                      <PhoneCall className="w-5 h-5 animate-bounce" />
-                    </div>
-                    <div>
-                      <div className="font-black text-sm text-[#E01B24]">
-                        {language === 'hi' ? '⚠️ आपातकालीन उच्च जोखिम (Red Risk Alert)' : '⚠️ Emergency High Risk Detected'}
+                <div
+                  role="alert"
+                  className="bg-[var(--status-danger-bg)] border border-[var(--status-danger-border)] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle
+                      className="w-5 h-5 text-[var(--status-danger)] shrink-0 mt-0.5"
+                      aria-hidden="true"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-semibold text-[var(--status-danger)]">
+                        {language === 'hi'
+                          ? 'आपातकालीन चिकित्सा ध्यान आवश्यक'
+                          : 'Immediate Emergency Medical Attention Required'}
                       </div>
-                      <div className="text-xs text-red-900 font-medium">
-                        {language === 'hi' ? 'मरीज को तुरंत 108 एम्बुलेंस द्वारा अस्पताल ले जाएं।' : 'Immediate hospital admission via 108 Ambulance required.'}
-                      </div>
+                      <p className="text-xs text-[var(--text-primary)]">
+                        {language === 'hi'
+                          ? 'कृपया तुरंत 108 पर कॉल कर सरकारी एम्बुलेंस बुलाएं या निकटतम आपातकालीन विभाग में जाएं।'
+                          : 'Please call 108 immediately for an emergency ambulance or go to the nearest hospital emergency department.'}
+                      </p>
                     </div>
                   </div>
-
                   <a
                     href="tel:108"
-                    className="bg-[#E01B24] hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-xs whitespace-nowrap self-stretch sm:self-auto justify-center"
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md text-xs font-semibold text-white bg-[var(--status-danger)] hover:bg-[var(--status-danger-hover)] transition-colors whitespace-nowrap shrink-0"
                   >
-                    <PhoneCall className="w-3.5 h-3.5" />
-                    <span>{language === 'hi' ? '108 पर कॉल करें' : 'Call 108 Emergency'}</span>
+                    <PhoneCall className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>{t('call108')}</span>
                   </a>
                 </div>
               )}
 
-              {/* Patient Original Spoke vs Translated Clinical Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#F0F5F9] p-4 rounded-xl border border-gray-200 text-xs">
-                <div>
-                  <span className="font-bold text-gray-500 block uppercase tracking-wider mb-1">
-                    🗣️ {t('patientSpoke')}:
-                  </span>
-                  <p className="font-medium text-[#1A1A1B] italic">
-                    "{generatedReport.rawInput}"
-                  </p>
-                </div>
-
-                <div className="border-t md:border-t-0 md:border-l border-gray-200 pt-2 md:pt-0 md:pl-4">
-                  <span className="font-bold text-[#1A5FB4] block uppercase tracking-wider mb-1">
-                    🩺 {language === 'hi' ? 'डॉक्टर हेतु क्लीनिकल सारांश:' : 'Clinical Summary (For Doctor):'}
-                  </span>
-                  <p className="font-bold text-[#1A1A1B]">
-                    "{generatedReport.translatedInputEn}"
-                  </p>
-                </div>
-              </div>
-
-              {/* Structured Fields: Chief Complaint, Symptoms, Duration, Department */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                
-                <div className="p-3.5 bg-[#DEE9F7] rounded-xl border border-blue-200">
-                  <span className="font-bold text-[#1A5FB4] block mb-1">
-                    🎯 {t('chiefComplaint')}:
-                  </span>
-                  <div className="text-sm font-bold text-[#1A1A1B]">
+              {/* Possible Causes / Primary Assessment & Recommended Department */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)] space-y-1">
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">
+                    {t('chiefComplaint')}
+                  </div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">
                     {language === 'hi' ? generatedReport.chiefComplaintHi : generatedReport.chiefComplaint}
                   </div>
-                </div>
-
-                <div className="p-3.5 bg-[#F0F5F9] rounded-xl border border-gray-200">
-                  <span className="font-bold text-gray-600 block mb-1">
-                    ⏱️ {t('duration')}:
-                  </span>
-                  <div className="text-sm font-bold text-[#1A1A1B]">
-                    {language === 'hi' ? generatedReport.durationHi : generatedReport.duration}
-                  </div>
-                </div>
-
-                <div className="p-3.5 bg-[#F0F5F9] rounded-xl border border-gray-200 sm:col-span-2">
-                  <span className="font-bold text-gray-600 block mb-1.5">
-                    🔍 {t('symptomsIdentified')}:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(language === 'hi' ? (generatedReport.symptomsHi || generatedReport.symptoms) : generatedReport.symptoms).map((sym, idx) => (
-                      <span key={idx} className="bg-white border border-gray-300 text-gray-800 font-medium px-2.5 py-0.5 rounded-lg text-xs">
-                        • {sym}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 sm:col-span-2">
-                  <span className="font-bold text-emerald-900 block mb-1">
-                    🏥 {t('recommendedDept')}:
-                  </span>
-                  <div className="text-sm font-bold text-emerald-950">
-                    {language === 'hi' ? generatedReport.recommendedDepartmentHi : generatedReport.recommendedDepartment}
-                  </div>
-                  <div className="text-[11px] text-emerald-700 mt-1">
+                  <p className="text-xs text-[var(--text-secondary)] pt-1 leading-relaxed">
                     {language === 'hi' ? generatedReport.riskReasonHi : generatedReport.riskReason}
-                  </div>
+                  </p>
                 </div>
 
+                <div className="p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)] space-y-2">
+                  <div>
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">
+                      {t('recommendedDept')}
+                    </div>
+                    <div className="text-sm font-semibold text-[var(--brand-primary)] mt-0.5">
+                      {language === 'hi'
+                        ? generatedReport.recommendedDepartmentHi
+                        : generatedReport.recommendedDepartment}
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-[var(--border-default)]">
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">
+                      {t('duration')}
+                    </div>
+                    <div className="text-sm font-medium text-[var(--text-primary)] tabular-nums mt-0.5">
+                      {language === 'hi' ? generatedReport.durationHi : generatedReport.duration}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Patient First-aid advice */}
-              <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs">
-                <span className="font-bold text-amber-900 block mb-1.5 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-amber-700" />
-                  {t('preliminaryAdvice')}:
-                </span>
-                <ul className="space-y-1 text-amber-950 font-medium">
-                  {(language === 'hi' ? (generatedReport.preliminaryAdviceHi || generatedReport.preliminaryAdvice) : (generatedReport.preliminaryAdvice || generatedReport.preliminaryAdviceHi || [])).map((adv, idx) => (
-                    <li key={idx} className="flex items-start gap-1.5">
-                      <span className="text-amber-700 font-bold">✓</span>
-                      <span>{adv}</span>
+              {/* Identified Symptoms */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
+                  {t('symptomsIdentified')}
+                </h4>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm text-[var(--text-primary)]">
+                  {(language === 'hi'
+                    ? generatedReport.symptomsHi || generatedReport.symptoms
+                    : generatedReport.symptoms
+                  ).map((sym, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-[var(--brand-primary)] font-semibold" aria-hidden="true">
+                        ·
+                      </span>
+                      <span>{sym}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              {/* Submission Status or Action Button */}
+              {/* Recommended Next Steps */}
+              <div className="p-4 rounded-lg bg-[var(--brand-primary-tint)] border border-[var(--brand-primary-border)] space-y-2">
+                <h4 className="text-xs font-semibold text-[var(--brand-primary)] flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                  <span>{t('preliminaryAdvice')}</span>
+                </h4>
+                <ol className="list-decimal list-inside space-y-1.5 text-sm text-[var(--text-primary)]">
+                  {(language === 'hi'
+                    ? generatedReport.preliminaryAdviceHi || generatedReport.preliminaryAdvice
+                    : generatedReport.preliminaryAdvice || []
+                  ).map((adv, idx) => (
+                    <li key={idx} className="leading-relaxed">
+                      {adv}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              {/* Medical Disclaimer */}
+              <div className="flex items-start gap-2 text-xs text-[var(--text-muted)] pt-1">
+                <Info className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                <p>{t('medicalDisclaimer')}</p>
+              </div>
+
+              {/* Forward to Doctor Queue Action */}
               {isSubmitted ? (
-                <div className="p-4 bg-emerald-100 border border-emerald-300 rounded-xl text-emerald-900 font-bold text-xs sm:text-sm flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-[#26A269] shrink-0" />
+                <div
+                  role="status"
+                  className="p-4 rounded-lg bg-[var(--status-success-bg)] border border-[var(--status-success-border)] text-[var(--status-success)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm"
+                >
+                  <div className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span>{t('reportSubmittedSuccess')}</span>
                   </div>
                   <button
+                    type="button"
                     onClick={onClose}
-                    className="bg-[#26A269] hover:bg-emerald-700 text-white font-bold px-4 py-1.5 rounded-lg text-xs cursor-pointer"
+                    className="px-4 py-1.5 rounded-md text-xs font-semibold bg-[var(--status-success)] text-white cursor-pointer self-start sm:self-center"
                   >
                     {t('close')}
                   </button>
                 </div>
               ) : (
                 <button
+                  type="button"
                   onClick={handleSubmitToDoctor}
-                  className="w-full bg-[#26A269] hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl text-sm sm:text-base flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md text-sm font-semibold text-white bg-[var(--brand-teal)] hover:bg-[var(--brand-teal-hover)] transition-colors cursor-pointer"
                 >
-                  <Stethoscope className="w-5 h-5" />
+                  <Stethoscope className="w-4 h-4" aria-hidden="true" />
                   <span>{t('submitToDoctorQueue')}</span>
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </button>
               )}
-
-            </div>
+            </section>
           )}
-
         </div>
-
       </div>
     </div>
   );

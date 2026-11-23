@@ -14,9 +14,6 @@ export function getLanguageLocale(lang: string): string {
     case 'hi':
     case 'hindi':
       return 'hi-IN';
-    case 'mr':
-    case 'marathi':
-      return 'mr-IN';
     case 'bn':
     case 'bengali':
       return 'bn-IN';
@@ -69,7 +66,7 @@ export class SpeechService {
     language: string = 'en',
     onStart?: () => void,
     onEnd?: () => void,
-    onError?: (e: any) => void
+    onError?: (e: unknown) => void
   ): boolean {
     if (!('speechSynthesis' in window)) {
       console.warn('Speech synthesis not supported in this browser.');
@@ -77,14 +74,11 @@ export class SpeechService {
       return false;
     }
 
-    // Cancel any active speech
     window.speechSynthesis.cancel();
 
-    // Clean text of markdown asterisks/bullets for smoother speech
     const cleanText = text
       .replace(/[*#_`~]/g, '')
       .replace(/•/g, ', ')
-      .replace(/🟢|🟡|🔴|✓|⏳|⚠️|🚨|🩺|💉|👶|🤰|🐕|🐍|🤢|🤒/g, '')
       .trim();
 
     if (!cleanText) return false;
@@ -92,12 +86,16 @@ export class SpeechService {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     const locale = getLanguageLocale(language);
     utterance.lang = locale;
-    utterance.rate = language === 'hi' || language === 'mr' ? 0.95 : 1.0;
+    utterance.rate = language === 'hi' ? 0.95 : 1.0;
     utterance.pitch = 1.0;
 
-    // Pick best matching voice if available
     const voices = window.speechSynthesis.getVoices();
-    const matchingVoice = voices.find(v => v.lang === locale || v.lang.startsWith(language) || v.lang.startsWith(locale.split('-')[0]));
+    const matchingVoice = voices.find(
+      (v) =>
+        v.lang === locale ||
+        v.lang.startsWith(language) ||
+        v.lang.startsWith(locale.split('-')[0])
+    );
     if (matchingVoice) {
       utterance.voice = matchingVoice;
     }
@@ -157,7 +155,8 @@ export class SpeechRecognitionService {
     SpeechRecognitionService.stopListening();
 
     try {
-      const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognitionClass =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognitionClass();
       SpeechRecognitionService.recognition = recognition;
 
@@ -212,7 +211,7 @@ export class SpeechRecognitionService {
     if (SpeechRecognitionService.recognition) {
       try {
         SpeechRecognitionService.recognition.stop();
-      } catch (e) {
+      } catch {
         // Ignore if already stopped
       }
       SpeechRecognitionService.recognition = null;

@@ -1,31 +1,25 @@
 import React from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { 
-  HealthcareFacility, 
-  Prescription, 
-  VaccinationRecord, 
-  Appointment, 
-  AITriageReport 
+import {
+  HealthcareFacility,
+  Prescription,
+  VaccinationRecord,
+  Appointment,
+  AITriageReport
 } from '../types';
-import { 
-  Building2, 
-  MapPin, 
-  Clock, 
-  Phone, 
-  Calendar, 
-  Bot, 
-  Sparkles, 
-  FileText, 
-  ShieldCheck, 
-  ArrowRight, 
-  Stethoscope, 
-  Syringe, 
-  HeartHandshake, 
-  AlertTriangle,
-  ChevronRight,
-  Activity,
-  CheckCircle2
+import {
+  MapPin,
+  Phone,
+  Calendar,
+  FileText,
+  ArrowRight,
+  Stethoscope,
+  Syringe,
+  MessageSquareText,
+  ExternalLink,
+  Info,
+  ClipboardList
 } from 'lucide-react';
 
 interface PatientDashboardProps {
@@ -47,7 +41,6 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   prescriptions,
   vaccinations,
   appointments,
-  triageReports,
   onSelectFacility,
   onOpenReportGenerator,
   onOpenChatbot,
@@ -56,433 +49,522 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   onBookAppointment
 }) => {
   const { language, t } = useLanguage();
-  const { patient } = useAuth();
+  const { patient, quickDemoLogin } = useAuth();
 
   const nearestFacility = facilities[0] || null;
   const recentPrescription = prescriptions[0] || null;
-  const pendingVaccines = vaccinations.filter(v => v.status === 'PENDING');
-  const userAppointments = appointments.filter(a => a.patientName === (patient?.name || 'Rameshwar Lal Sharma'));
+  const userAppointments = appointments.filter(
+    (a) => a.patientName === (patient?.name || 'Rameshwar Lal Sharma')
+  );
+
+  const getFacilityTypeLabel = (type: HealthcareFacility['type']) => {
+    switch (type) {
+      case 'GOVT_HOSPITAL':
+        return t('govtHospital');
+      case 'CHC':
+        return t('chc');
+      case 'PHC':
+        return t('phc');
+      default:
+        return t('specialistClinic');
+    }
+  };
+
+  const getDirectionsUrl = (fac: HealthcareFacility) =>
+    `https://www.google.com/maps/dir/?api=1&destination=${fac.lat},${fac.lng}`;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto py-2">
-      
-      {/* Top Patient Profile & ABHA Identity Card */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#DEE9F7] text-[#1A5FB4] flex items-center justify-center font-black text-xl shrink-0 border border-blue-200">
-            {patient?.name?.charAt(0) || 'R'}
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-[#1A1A1B] tracking-tight">
-                {t('welcomePatient')}, {patient?.name || 'Rameshwar Lal'}
-              </h1>
-              <span className="inline-flex items-center gap-1 bg-[#DEE9F7] text-[#1A5FB4] text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                ABHA Verified
-              </span>
-            </div>
-            
-            <p className="text-xs sm:text-sm text-gray-500 flex flex-wrap items-center gap-2">
-              <span>📍 {patient?.village || 'Rampur Village'}, Sitapur (UP)</span>
-              <span>•</span>
-              <span>ABHA ID: <strong className="font-mono text-[#1A1A1B]">{patient?.abhaId}</strong></span>
-              <span>•</span>
-              <span className="text-[#26A269] font-medium">{patient?.abhaAddress}</span>
-            </p>
-          </div>
+    <div className="space-y-8 py-4">
+      {/* Patient Context & Portal Switcher Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border-default)] text-sm">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[var(--text-secondary)]">
+          <span className="font-semibold text-[var(--text-primary)]">
+            {language === 'hi' ? patient?.nameHi || patient?.name : patient?.name || 'Rameshwar Lal Sharma'}
+          </span>
+          <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
+          <span className="font-mono text-xs tabular-nums">
+            {t('abhaNumber')}: {patient?.abhaId || '91-4829-1029-4820'}
+          </span>
+          <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
+          <span className="text-xs">
+            {language === 'hi' ? patient?.villageHi : patient?.village}, {patient?.district}
+          </span>
         </div>
 
-        {/* Quick Voice AI Trigger Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {onOpenChatbot && (
-            <button
-              onClick={onOpenChatbot}
-              className="bg-[#DEE9F7] hover:bg-[#c6dcf7] active:scale-95 text-[#1A5FB4] border border-blue-200 font-bold px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-xs transition-all cursor-pointer"
-            >
-              <Bot className="w-4 h-4 text-[#1A5FB4]" />
-              <span>{language === 'hi' ? 'AI डॉक्टर से पूछें' : language === 'mr' ? 'AI डॉक्टरशी बोला' : 'Talk to AI Doctor'}</span>
-            </button>
-          )}
-
-          <button
-            onClick={onOpenReportGenerator}
-            className="bg-[#1A5FB4] hover:bg-blue-700 active:scale-95 text-white font-bold px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-[var(--text-muted)]">{t('switchRole')}:</span>
+          <div
+            role="group"
+            aria-label={t('switchRole')}
+            className="inline-flex bg-[var(--bg-subtle)] p-0.5 rounded-md border border-[var(--border-default)]"
           >
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>{t('generateReportBtn')}</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => quickDemoLogin('patient')}
+              aria-pressed="true"
+              className="px-2.5 py-1 rounded text-xs font-semibold bg-white text-[var(--brand-primary)] shadow-2xs cursor-pointer"
+            >
+              {t('navPatientPortal')}
+            </button>
+            <button
+              type="button"
+              onClick={() => quickDemoLogin('doctor')}
+              aria-pressed="false"
+              className="px-2.5 py-1 rounded text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+            >
+              {t('navDoctorPortal')}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Active OPD Token Banner (if booked) */}
+      {/* Formal Hero Section — Clear H1, One-Line Value Prop, Single Primary CTA */}
+      <section
+        aria-labelledby="hero-heading"
+        className="bg-white rounded-xl border border-[var(--border-default)] p-6 sm:p-10 shadow-[var(--shadow-card)]"
+      >
+        <div className="max-w-3xl space-y-4">
+          <p className="text-xs font-semibold text-[var(--brand-teal)]">
+            {t('sihTag')} · {t('appSubtitle')}
+          </p>
+          <h1
+            id="hero-heading"
+            className="text-2xl sm:text-4xl font-bold text-[var(--text-primary)] leading-tight"
+          >
+            {t('heroHeadline')}
+          </h1>
+          <p className="text-base text-[var(--text-secondary)] leading-relaxed max-w-2xl">
+            {t('heroSubheadline')}
+          </p>
+          <div className="pt-2 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={onOpenChatbot || onOpenReportGenerator}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] transition-colors cursor-pointer"
+            >
+              <MessageSquareText className="w-4 h-4" aria-hidden="true" />
+              <span>{t('heroPrimaryCta')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onNavigateToMap}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold text-[var(--brand-primary)] bg-white border border-[var(--border-strong)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
+            >
+              <span>{t('heroSecondaryCta')}</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Active OPD Token Notice (if scheduled) */}
       {userAppointments.length > 0 && (
-        <div className="bg-[#DEE9F7] border border-[#1A5FB4]/30 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#1A5FB4] text-white flex items-center justify-center font-bold text-lg">
-              #{userAppointments[0].tokenNumber}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#1A5FB4]">
-                  {language === 'hi' ? 'सक्रिय ओपीडी पर्ची टोकन' : 'Active OPD Token'}
-                </span>
-                <span className="bg-[#26A269] text-white text-[10px] font-bold px-2 py-0.2 rounded-full">
-                  Confirmed
-                </span>
+        <section
+          aria-label={t('activeTokenTitle')}
+          className="bg-[var(--brand-primary-tint)] border border-[var(--brand-primary-border)] rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="px-3.5 py-2 rounded-lg bg-[var(--brand-primary)] text-white text-center shrink-0">
+              <div className="text-[11px] font-medium text-blue-100">
+                {language === 'hi' ? 'टोकन' : 'Token'}
               </div>
-              <h3 className="font-bold text-[#1A1A1B] text-sm sm:text-base">
-                {userAppointments[0].facilityName} • {userAppointments[0].doctorName}
-              </h3>
-              <p className="text-xs text-gray-600">
-                {userAppointments[0].appointmentDate} | Slot: {userAppointments[0].timeSlot}
+              <div className="text-lg font-mono font-semibold tabular-nums leading-tight">
+                #{userAppointments[0].tokenNumber}
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs font-semibold text-[var(--brand-primary)]">
+                {t('activeTokenTitle')} · {t('statusWaiting')}
+              </p>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                {language === 'hi' && userAppointments[0].facilityNameHi
+                  ? userAppointments[0].facilityNameHi
+                  : userAppointments[0].facilityName}
+              </h2>
+              <p className="text-sm text-[var(--text-secondary)] tabular-nums">
+                {userAppointments[0].doctorName} · {userAppointments[0].appointmentDate} ·{' '}
+                {userAppointments[0].timeSlot}
               </p>
             </div>
           </div>
 
-          <div className="text-left sm:text-right">
-            <div className="text-xs font-bold text-[#1A5FB4]">
-              {language === 'hi' ? 'सीतापुर PHC ओपीडी रूम #3' : 'Sitapur PHC OPD Room #3'}
+          <div className="text-sm text-[var(--text-secondary)] md:text-right shrink-0">
+            <div className="font-semibold text-[var(--text-primary)]">
+              {language === 'hi' ? 'ओपीडी कक्ष 3' : 'Outpatient Room 3'}
             </div>
-            <div className="text-[11px] text-gray-500">
-              {language === 'hi' ? 'कृपया समय पर उपस्थित रहें' : 'Please arrive 10 min prior'}
+            <div className="text-xs text-[var(--text-muted)]">
+              {language === 'hi' ? 'कृपया 10 मिनट पूर्व पहुंचें' : 'Please arrive 10 minutes prior'}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* 4 Core Functionality Cards with Balanced Aspect Ratio */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        
-        {/* Card 1: AI Symptom Triage Report */}
-        <div 
-          onClick={onOpenReportGenerator}
-          className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-[#1A5FB4] shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between min-h-[190px] hover:-translate-y-0.5"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-[#DEE9F7] text-[#1A5FB4] flex items-center justify-center group-hover:scale-105 transition-transform shadow-2xs">
-                <Bot className="w-5 h-5" />
-              </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1A5FB4] bg-[#DEE9F7] px-2.5 py-0.5 rounded-full">
-                <Sparkles className="w-3 h-3 text-[#1A5FB4]" />
-                {language === 'hi' ? 'त्वरित जांच' : 'AI Triage'}
-              </span>
-            </div>
-            <h2 className="text-sm sm:text-base font-bold text-[#1A1A1B] group-hover:text-[#1A5FB4] transition-colors leading-snug">
-              {t('actionAIAssistant')}
-            </h2>
-            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed min-h-[34px]">
-              {t('actionAIAssistantDesc')}
-            </p>
-          </div>
-
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-[#1A5FB4]">
-            <span>{language === 'hi' ? 'जांच शुरू करें' : 'Start Checkup'}</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </div>
+      {/* Core Services Grid — 4 Aligned, Uniform Cards */}
+      <section aria-labelledby="services-heading" className="space-y-4">
+        <div>
+          <h2 id="services-heading" className="text-xl font-semibold text-[var(--text-primary)]">
+            {t('quickActionsTitle')}
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            {t('quickActionsSubtitle')}
+          </p>
         </div>
 
-        {/* Card 2: Find Facilities & Live Bed Availability */}
-        <div 
-          onClick={onNavigateToMap}
-          className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-[#26A269] shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between min-h-[190px] hover:-translate-y-0.5"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#26A269] flex items-center justify-center group-hover:scale-105 transition-transform border border-emerald-100 shadow-2xs">
-                <MapPin className="w-5 h-5" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Symptom Checker */}
+          <button
+            type="button"
+            onClick={onOpenReportGenerator}
+            className="text-left bg-white rounded-xl p-5 border border-[var(--border-default)] hover:border-[var(--brand-primary)] shadow-[var(--shadow-card)] transition-colors cursor-pointer flex flex-col justify-between min-h-[176px] group"
+          >
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-tint)] text-[var(--brand-primary)] flex items-center justify-center">
+                <ClipboardList className="w-5 h-5" aria-hidden="true" />
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#26A269] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/50">
-                {language === 'hi' ? 'लाइव GPS' : 'Live GPS'}
-              </span>
-            </div>
-            <h2 className="text-sm sm:text-base font-bold text-[#1A1A1B] group-hover:text-[#26A269] transition-colors leading-snug">
-              {t('actionFindDoctor')}
-            </h2>
-            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed min-h-[34px]">
-              {t('actionFindDoctorDesc')}
-            </p>
-          </div>
-
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-[#26A269]">
-            <span>{language === 'hi' ? 'नक्शा खोलें' : 'Open Map'}</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </div>
-
-        {/* Card 3: Free OPD Appointment Booking */}
-        <div 
-          onClick={() => nearestFacility && onBookAppointment(nearestFacility)}
-          className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-[#1A5FB4] shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between min-h-[190px] hover:-translate-y-0.5"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1A5FB4] flex items-center justify-center group-hover:scale-105 transition-transform border border-blue-100 shadow-2xs">
-                <Calendar className="w-5 h-5" />
+              <div>
+                <h3 className="text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-primary)] transition-colors">
+                  {t('actionAIAssistant')}
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  {t('actionAIAssistantDesc')}
+                </p>
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1A5FB4] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200/50">
-                {language === 'hi' ? 'मुफ्त टोकन' : 'Free Token'}
-              </span>
             </div>
-            <h2 className="text-sm sm:text-base font-bold text-[#1A1A1B] group-hover:text-[#1A5FB4] transition-colors leading-snug">
-              {t('actionBookAppointment')}
-            </h2>
-            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed min-h-[34px]">
-              {t('actionBookAppointmentDesc')}
-            </p>
-          </div>
+            <span className="mt-4 pt-3 border-t border-[var(--border-default)] inline-flex items-center justify-between text-xs font-semibold text-[var(--brand-primary)] w-full">
+              <span>{t('generateReportBtn')}</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </span>
+          </button>
 
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-[#1A5FB4]">
-            <span>{language === 'hi' ? 'अभी बुक करें' : 'Book Now'}</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </div>
-
-        {/* Card 4: Digital ABHA Records & Prescriptions */}
-        <div 
-          onClick={onNavigateToRecords}
-          className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-slate-400 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between min-h-[190px] hover:-translate-y-0.5"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center group-hover:scale-105 transition-transform shadow-2xs">
-                <FileText className="w-5 h-5" />
+          {/* Card 2: Hospital & PHC Finder */}
+          <button
+            type="button"
+            onClick={onNavigateToMap}
+            className="text-left bg-white rounded-xl p-5 border border-[var(--border-default)] hover:border-[var(--brand-primary)] shadow-[var(--shadow-card)] transition-colors cursor-pointer flex flex-col justify-between min-h-[176px] group"
+          >
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-lg bg-[var(--brand-teal-tint)] text-[var(--brand-teal)] flex items-center justify-center">
+                <MapPin className="w-5 h-5" aria-hidden="true" />
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                {language === 'hi' ? 'आभा कार्ड' : 'ABHA Card'}
-              </span>
+              <div>
+                <h3 className="text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-primary)] transition-colors">
+                  {t('actionFindDoctor')}
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  {t('actionFindDoctorDesc')}
+                </p>
+              </div>
             </div>
-            <h2 className="text-sm sm:text-base font-bold text-[#1A1A1B] group-hover:text-[#1A5FB4] transition-colors leading-snug">
-              {t('actionHealthRecords')}
-            </h2>
-            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed min-h-[34px]">
-              {t('actionHealthRecordsDesc')}
-            </p>
-          </div>
+            <span className="mt-4 pt-3 border-t border-[var(--border-default)] inline-flex items-center justify-between text-xs font-semibold text-[var(--brand-primary)] w-full">
+              <span>{t('navMap')}</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </span>
+          </button>
 
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-slate-700">
-            <span>{language === 'hi' ? 'रिकॉर्ड देखें' : 'View Records'}</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </div>
+          {/* Card 3: OPD Appointment Booking */}
+          <button
+            type="button"
+            onClick={() => nearestFacility && onBookAppointment(nearestFacility)}
+            className="text-left bg-white rounded-xl p-5 border border-[var(--border-default)] hover:border-[var(--brand-primary)] shadow-[var(--shadow-card)] transition-colors cursor-pointer flex flex-col justify-between min-h-[176px] group"
+          >
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary-tint)] text-[var(--brand-primary)] flex items-center justify-center">
+                <Calendar className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-primary)] transition-colors">
+                  {t('actionBookAppointment')}
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  {t('actionBookAppointmentDesc')}
+                </p>
+              </div>
+            </div>
+            <span className="mt-4 pt-3 border-t border-[var(--border-default)] inline-flex items-center justify-between text-xs font-semibold text-[var(--brand-primary)] w-full">
+              <span>{t('bookOpdToken')}</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </span>
+          </button>
+
+          {/* Card 4: ABHA Health Records */}
+          <button
+            type="button"
+            onClick={onNavigateToRecords}
+            className="text-left bg-white rounded-xl p-5 border border-[var(--border-default)] hover:border-[var(--brand-primary)] shadow-[var(--shadow-card)] transition-colors cursor-pointer flex flex-col justify-between min-h-[176px] group"
+          >
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-lg bg-[var(--bg-subtle)] text-[var(--text-primary)] flex items-center justify-center">
+                <FileText className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-primary)] transition-colors">
+                  {t('actionHealthRecords')}
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  {t('actionHealthRecordsDesc')}
+                </p>
+              </div>
+            </div>
+            <span className="mt-4 pt-3 border-t border-[var(--border-default)] inline-flex items-center justify-between text-xs font-semibold text-[var(--brand-primary)] w-full">
+              <span>{t('navHealthRecords')}</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </span>
+          </button>
         </div>
+      </section>
 
-      </div>
-
-      {/* Public Health Advisory Banner */}
-      <div className="bg-[#26A269] text-white rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <HeartHandshake className="w-7 h-7 text-white" />
-          </div>
-          <div>
-            <div className="text-xs uppercase font-bold tracking-wider text-emerald-100 mb-0.5">
-              {language === 'hi' ? 'साप्ताहिक स्वास्थ्य सलाह' : 'Weekly Public Health Tip'}
-            </div>
-            <p className="font-bold text-sm sm:text-base leading-snug">
+      {/* Restrained Seasonal Public Health Advisory */}
+      <aside
+        aria-label={language === 'hi' ? 'सार्वजनिक स्वास्थ्य सूचना' : 'Public health advisory'}
+        className="bg-[var(--brand-teal-tint)] border border-[var(--brand-teal-border)] rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-[var(--brand-teal)] shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+              {language === 'hi' ? 'सार्वजनिक स्वास्थ्य परामर्श' : 'Public Health Advisory'}
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)]">
               {language === 'hi'
-                ? 'मानसून के मौसम में पानी को उबालकर पीना 80% जलजनित बीमारियों (डायरिया, पीलिया) से बचाता है।'
-                : 'Boiled drinking water during monsoon prevents 80% of water-borne diseases like diarrhea and jaundice.'}
+                ? 'मानसून के दौरान उबला और स्वच्छ पेयजल पीने से डायरिया और पीलिया जैसे जलजनित रोगों का जोखिम काफी कम होता है।'
+                : 'Boiling drinking water during the monsoon season significantly reduces the risk of water-borne illnesses such as acute gastroenteritis and hepatitis.'}
             </p>
           </div>
         </div>
 
         <button
+          type="button"
           onClick={onOpenReportGenerator}
-          className="bg-white hover:bg-emerald-50 text-[#26A269] font-bold px-4 py-2 rounded-xl text-xs whitespace-nowrap shadow-xs transition-colors self-end sm:self-center cursor-pointer"
+          className="px-4 py-2 rounded-md text-xs font-semibold text-[var(--brand-teal)] bg-white border border-[var(--brand-teal-border)] hover:bg-teal-50 transition-colors whitespace-nowrap shrink-0 self-start sm:self-center cursor-pointer"
         >
-          {language === 'hi' ? 'रिपोर्ट बनाएं' : 'Check Symptoms'}
+          {t('heroPrimaryCta')}
         </button>
-      </div>
+      </aside>
 
-      {/* Main Two-Column Content Grid: Nearest Facilities + Records Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column (7 cols): Nearest Health Centers with Live Bed & Doctor Status */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
+      {/* Main Two-Column Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column (7 cols): Nearby Public Healthcare Facilities */}
+        <section aria-labelledby="nearby-facilities-heading" className="lg:col-span-7 space-y-4">
+          <div className="flex items-baseline justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-[#1A1A1B]">
+              <h2
+                id="nearby-facilities-heading"
+                className="text-xl font-semibold text-[var(--text-primary)]"
+              >
                 {t('nearestFacilities')}
               </h2>
-              <p className="text-xs text-gray-500">
-                {language === 'hi' ? 'लाइव डॉक्टर उपस्थिति एवं बेड उपलब्धता' : 'Real-time doctor attendance & bed telemetry'}
+              <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                {language === 'hi'
+                  ? 'उपलब्ध चिकित्सक, बेड संख्या एवं संपर्क विवरण'
+                  : 'Verified public facilities with distance, contact numbers, and directions'}
               </p>
             </div>
-
             <button
+              type="button"
               onClick={onNavigateToMap}
-              className="text-xs font-bold text-[#1A5FB4] hover:underline flex items-center gap-1"
+              className="text-xs font-semibold text-[var(--brand-primary)] hover:underline whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <span>{t('viewAllOnMap')}</span>
-              <ChevronRight className="w-4 h-4" />
+              {t('viewAllOnMap')}
             </button>
           </div>
 
           <div className="space-y-3">
             {facilities.slice(0, 3).map((fac) => (
-              <div
+              <article
                 key={fac.id}
-                className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-gray-300 shadow-sm transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className="bg-white rounded-xl p-5 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-4"
               >
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#DEE9F7] text-[#1A5FB4]">
-                      {fac.type}
-                    </span>
-                    <span className="text-xs text-gray-500 font-bold">
-                      📍 {fac.distanceKm} km
-                    </span>
-                    {fac.emergencyAvailable && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-100 text-[#E01B24]">
-                        24x7 Emergency
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)] tabular-nums">
+                      <span className="font-semibold text-[var(--brand-primary)]">
+                        {getFacilityTypeLabel(fac.type)}
                       </span>
-                    )}
-                  </div>
+                      <span aria-hidden="true">·</span>
+                      <span>{fac.distanceKm} km ({fac.travelTimeMins} {t('minutes')})</span>
+                      {fac.emergencyAvailable && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="font-medium text-[var(--status-danger)]">
+                            {t('emergencyService')}
+                          </span>
+                        </>
+                      )}
+                    </div>
 
-                  <h3 className="font-bold text-base text-[#1A1A1B]">
-                    {language === 'hi' ? fac.nameHi : fac.name}
-                  </h3>
+                    <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                      {language === 'hi' ? fac.nameHi : fac.name}
+                    </h3>
 
-                  <p className="text-xs text-gray-600 flex items-center gap-1.5">
-                    <Stethoscope className="w-3.5 h-3.5 text-[#26A269]" />
-                    <span>{fac.doctorName} ({fac.specialty})</span>
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 pt-1">
-                    <span className="text-[#26A269] font-semibold">
-                      🛏️ {fac.availableBeds}/{fac.totalBeds} {t('bedsAvailable')}
-                    </span>
-                    <span>•</span>
-                    <span className="text-[#1A5FB4] font-medium">
-                      ⏱️ {fac.currentWaitTimeMin} min OPD wait
-                    </span>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      {language === 'hi' ? fac.addressHi : fac.address}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex sm:flex-col items-center sm:items-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[var(--text-secondary)] tabular-nums pt-3 border-t border-[var(--border-default)]">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Stethoscope className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
+                    <span>{fac.doctorName} ({fac.specialty})</span>
+                  </span>
+                  <span>
+                    {t('bedsAvailable')}:{' '}
+                    <strong className="font-semibold text-[var(--text-primary)]">
+                      {fac.bedsAvailable}/{fac.totalBeds}
+                    </strong>
+                  </span>
+                  <a
+                    href={`tel:${fac.contactNumber}`}
+                    className="inline-flex items-center gap-1 text-[var(--brand-primary)] hover:underline font-medium"
+                  >
+                    <Phone className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>{fac.contactNumber}</span>
+                  </a>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
                   <button
+                    type="button"
                     onClick={() => onBookAppointment(fac)}
-                    className="w-full sm:w-auto bg-[#1A5FB4] hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors text-center"
+                    className="px-4 py-2 rounded-md text-xs font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] transition-colors cursor-pointer"
                   >
                     {t('bookOpdToken')}
                   </button>
-
+                  <a
+                    href={getDirectionsUrl(fac)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold text-[var(--text-primary)] bg-white border border-[var(--border-strong)] hover:bg-[var(--bg-subtle)] transition-colors"
+                  >
+                    <span>{t('getDirections')}</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
+                  </a>
                   <button
+                    type="button"
                     onClick={() => onSelectFacility(fac)}
-                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-3 py-2 rounded-xl text-xs transition-colors text-center"
+                    className="px-3 py-2 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--brand-primary)] transition-colors cursor-pointer"
                   >
                     {t('details')}
                   </button>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Right Column (5 cols): Recent Prescription & Vaccination Tracker */}
-        <div className="lg:col-span-5 space-y-5">
-          
-          {/* Recent Prescription Card */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#1A5FB4]" />
-                <h3 className="font-bold text-sm text-[#1A1A1B]">
-                  {t('recentPrescription')}
-                </h3>
-              </div>
+        {/* Right Column (5 cols): Recent Prescription & Immunization Summary */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Recent Prescription */}
+          <section
+            aria-labelledby="recent-rx-heading"
+            className="bg-white rounded-xl p-5 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-default)]">
+              <h2 id="recent-rx-heading" className="text-base font-semibold text-[var(--text-primary)]">
+                {t('recentPrescription')}
+              </h2>
               <button
+                type="button"
                 onClick={onNavigateToRecords}
-                className="text-xs font-bold text-[#1A5FB4] hover:underline"
+                className="text-xs font-semibold text-[var(--brand-primary)] hover:underline cursor-pointer"
               >
                 {t('viewAll')}
               </button>
             </div>
 
             {recentPrescription ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Date: <strong>{recentPrescription.date}</strong></span>
-                  <span className="bg-[#DEE9F7] text-[#1A5FB4] font-bold px-2 py-0.5 rounded">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-[var(--text-muted)] tabular-nums">
+                  <span>{recentPrescription.date}</span>
+                  <span className="font-mono font-medium text-[var(--text-secondary)]">
                     {recentPrescription.id}
                   </span>
                 </div>
 
-                <div className="bg-[#F0F5F9] p-3 rounded-xl border border-gray-200">
-                  <div className="text-xs text-gray-500 font-bold">{t('diagnosis')}:</div>
-                  <div className="text-sm font-bold text-[#1A1A1B]">
-                    {language === 'hi' ? recentPrescription.diagnosisHi : recentPrescription.diagnosis}
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-[var(--text-muted)]">
+                    {t('diagnosis')}
                   </div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    Dr. {recentPrescription.doctorName} • {recentPrescription.facilityName}
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">
+                    {language === 'hi' && recentPrescription.diagnosisHi
+                      ? recentPrescription.diagnosisHi
+                      : recentPrescription.diagnosis}
+                  </div>
+                  <div className="text-xs text-[var(--text-secondary)]">
+                    {recentPrescription.doctorName} · {recentPrescription.facilityName}
                   </div>
                 </div>
 
-                {/* Prescribed generic medicines list */}
-                <div className="space-y-1.5">
-                  <div className="text-xs font-bold text-gray-700">
-                    {language === 'hi' ? '℞ निर्धारित दवाइयां:' : '℞ Prescribed Generic Medicines:'}
+                <div className="space-y-2 pt-3 border-t border-[var(--border-default)]">
+                  <div className="text-xs font-semibold text-[var(--text-secondary)]">
+                    {t('rxMedicines')}
                   </div>
-                  {recentPrescription.medicines.slice(0, 2).map((med, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded-lg border border-gray-200">
-                      <div>
-                        <span className="font-bold text-gray-900">{med.name}</span>
-                        <span className="text-gray-500 text-[11px] block">{language === 'hi' ? (med.frequencyHi || med.frequency) : med.frequency}</span>
-                      </div>
-                      <span className="text-gray-600 font-bold text-[11px]">{med.duration}</span>
-                    </div>
-                  ))}
+                  <ul className="divide-y divide-[var(--border-default)]">
+                    {recentPrescription.medicines.slice(0, 2).map((med, idx) => (
+                      <li key={med.id || idx} className="py-2 flex items-start justify-between gap-3 text-xs">
+                        <div>
+                          <div className="font-medium text-[var(--text-primary)]">{med.name}</div>
+                          <div className="text-[var(--text-muted)] mt-0.5">
+                            {language === 'hi' ? med.frequencyHi || med.frequency : med.frequency}
+                          </div>
+                        </div>
+                        <span className="font-medium text-[var(--text-secondary)] tabular-nums whitespace-nowrap">
+                          {med.duration}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-gray-500">{t('noPrescriptionsYet')}</p>
+              <p className="text-sm text-[var(--text-muted)]">{t('noPrescriptionsYet')}</p>
             )}
-          </div>
+          </section>
 
-          {/* Mission Indradhanush Vaccination Alert */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          {/* Immunization Schedule */}
+          <section
+            aria-labelledby="vaccine-heading"
+            className="bg-white rounded-xl p-5 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-default)]">
               <div className="flex items-center gap-2">
-                <Syringe className="w-5 h-5 text-[#26A269]" />
-                <h3 className="font-bold text-sm text-[#1A1A1B]">
+                <Syringe className="w-4 h-4 text-[var(--brand-teal)]" aria-hidden="true" />
+                <h2 id="vaccine-heading" className="text-base font-semibold text-[var(--text-primary)]">
                   {t('vaccineSchedule')}
-                </h3>
+                </h2>
               </div>
-              <span className="text-[10px] bg-emerald-100 text-[#26A269] font-bold px-2 py-0.5 rounded-full">
-                UIP Free
-              </span>
+              <span className="text-xs text-[var(--text-muted)]">UIP</span>
             </div>
 
-            <div className="space-y-2">
-              {vaccinations.slice(0, 2).map((vac) => (
-                <div 
+            <ul className="divide-y divide-[var(--border-default)]">
+              {vaccinations.slice(0, 3).map((vac) => (
+                <li
                   key={vac.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-[#F0F5F9] border border-gray-200 text-xs"
+                  className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3 text-sm"
                 >
-                  <div>
-                    <div className="font-bold text-gray-900">{vac.vaccineName}</div>
-                    <div className="text-gray-500 text-[11px]">{vac.beneficiaryName} ({vac.category})</div>
-                    <div className="text-gray-400 text-[10px]">Due: {vac.dueDate}</div>
+                  <div className="space-y-0.5">
+                    <div className="font-medium text-[var(--text-primary)]">
+                      {language === 'hi' && vac.vaccineNameHi ? vac.vaccineNameHi : vac.vaccineName}
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)] tabular-nums">
+                      {vac.dose} · {vac.dueDate || vac.dateAdministered}
+                    </div>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                    vac.status === 'COMPLETED'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-amber-100 text-amber-900'
-                  }`}>
-                    {vac.status === 'COMPLETED' 
-                      ? (language === 'hi' ? 'टीका लगा ✓' : 'Given ✓') 
-                      : (language === 'hi' ? 'लगाना बाकी ⏳' : 'Due ⏳')}
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap ${
+                      vac.status === 'COMPLETED'
+                        ? 'bg-[var(--status-success-bg)] text-[var(--status-success)]'
+                        : 'bg-[var(--status-warning-bg)] text-[var(--status-warning)]'
+                    }`}
+                  >
+                    {vac.status === 'COMPLETED' ? t('vaccineGiven') : t('vaccineDue')}
                   </span>
-                </div>
+                </li>
               ))}
-            </div>
-          </div>
-
+            </ul>
+          </section>
         </div>
-
       </div>
-
     </div>
   );
 };

@@ -2,21 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { Prescription, VaccinationRecord, AITriageReport } from '../types';
-import { 
-  FileText, 
-  ShieldCheck, 
-  Syringe, 
-  QrCode, 
-  Printer, 
-  Bot, 
-  Calendar, 
-  Building2, 
-  Stethoscope, 
-  Clock,
-  Sparkles,
-  Pill,
+import {
+  FileText,
+  ShieldCheck,
+  Syringe,
+  QrCode,
+  Printer,
   Volume2,
-  Square
+  Square,
+  ClipboardList
 } from 'lucide-react';
 import { SpeechService } from '../utils/speech';
 
@@ -34,8 +28,12 @@ export const DigitalHealthRecord: React.FC<DigitalHealthRecordProps> = ({
   const { language, t } = useLanguage();
   const { patient } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'PRESCRIPTIONS' | 'VACCINES' | 'AI_TRIAGE' | 'ABHA_CARD'>('PRESCRIPTIONS');
-  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(prescriptions[0] || null);
+  const [activeTab, setActiveTab] = useState<'PRESCRIPTIONS' | 'VACCINES' | 'AI_TRIAGE' | 'ABHA_CARD'>(
+    'PRESCRIPTIONS'
+  );
+  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(
+    prescriptions[0] || null
+  );
   const [isSpeakingRx, setIsSpeakingRx] = useState(false);
 
   useEffect(() => {
@@ -57,10 +55,22 @@ export const DigitalHealthRecord: React.FC<DigitalHealthRecordProps> = ({
 
     if (!selectedPrescription) return;
 
-    const medText = selectedPrescription.medicines.map(m => `${m.name}, ${language === 'hi' ? (m.frequencyHi || m.frequency) : m.frequency}, ${m.duration}`).join('. ');
-    const textToSpeak = language === 'hi'
-      ? `डॉक्टर ${selectedPrescription.doctorName} द्वारा जारी पर्ची। बीमारी: ${selectedPrescription.diagnosisHi || selectedPrescription.diagnosis}। दवाइयां: ${medText}। डॉक्टर की सलाह: ${selectedPrescription.advice || ''}`
-      : `Prescription by Dr. ${selectedPrescription.doctorName}. Diagnosis: ${selectedPrescription.diagnosis}. Medicines: ${medText}. Advice: ${selectedPrescription.advice || ''}`;
+    const medText = selectedPrescription.medicines
+      .map(
+        (m) =>
+          `${m.name}, ${language === 'hi' ? m.frequencyHi || m.frequency : m.frequency}, ${m.duration}`
+      )
+      .join('. ');
+    const rxAdvice =
+      language === 'hi'
+        ? selectedPrescription.adviceHi || selectedPrescription.dietaryAdviceHi || selectedPrescription.advice || ''
+        : selectedPrescription.advice || selectedPrescription.dietaryAdvice || '';
+    const textToSpeak =
+      language === 'hi'
+        ? `${selectedPrescription.doctorName} द्वारा जारी पर्ची। निदान: ${
+            selectedPrescription.diagnosisHi || selectedPrescription.diagnosis
+          }। दवाइयां: ${medText}। सलाह: ${rxAdvice}`
+        : `Prescription by ${selectedPrescription.doctorName}. Diagnosis: ${selectedPrescription.diagnosis}. Medications: ${medText}. Advice: ${rxAdvice}`;
 
     setIsSpeakingRx(true);
     SpeechService.speak(
@@ -72,430 +82,469 @@ export const DigitalHealthRecord: React.FC<DigitalHealthRecordProps> = ({
     );
   };
 
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto py-2">
-      
-      {/* ABHA National Health Card Banner */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 bg-[#DEE9F7] text-[#1A5FB4] text-xs font-bold px-3 py-1 rounded-full mb-2 border border-blue-200">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Ayushman Bharat Digital Mission (ABDM)</span>
-          </div>
+  const getRiskBadge = (level: AITriageReport['riskLevel']) => {
+    if (level === 'Red') {
+      return 'bg-[var(--status-danger-bg)] text-[var(--status-danger)] border-[var(--status-danger-border)]';
+    }
+    if (level === 'Yellow') {
+      return 'bg-[var(--status-warning-bg)] text-[var(--status-warning)] border-[var(--status-warning-border)]';
+    }
+    return 'bg-[var(--status-success-bg)] text-[var(--status-success)] border-[var(--status-success-border)]';
+  };
 
-          <h1 className="text-xl sm:text-2xl font-bold text-[#1A1A1B] tracking-tight">
+  const rxLabTests = selectedPrescription
+    ? language === 'hi' && selectedPrescription.labTestsRecommendedHi?.length
+      ? selectedPrescription.labTestsRecommendedHi
+      : selectedPrescription.labTests?.length
+        ? selectedPrescription.labTests
+        : selectedPrescription.labTestsRecommended || []
+    : [];
+
+  const rxAdviceText = selectedPrescription
+    ? language === 'hi'
+      ? selectedPrescription.adviceHi ||
+        selectedPrescription.dietaryAdviceHi ||
+        selectedPrescription.advice ||
+        selectedPrescription.dietaryAdvice ||
+        ''
+      : selectedPrescription.advice || selectedPrescription.dietaryAdvice || ''
+    : '';
+
+  return (
+    <div className="space-y-6 py-4">
+      {/* Page Header */}
+      <div className="bg-white rounded-xl p-6 border border-[var(--border-default)] shadow-[var(--shadow-card)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-[var(--brand-teal)]">
+            Ayushman Bharat Digital Mission (ABDM)
+          </p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
             {t('healthRecordsTitle')}
           </h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            ABHA ID: <strong className="text-[#1A1A1B] font-mono">{patient?.abhaId}</strong> • ABHA Address: <strong className="text-[#26A269]">{patient?.abhaAddress}</strong>
+          <p className="text-sm text-[var(--text-secondary)] font-mono tabular-nums">
+            {t('abhaNumber')}: <strong className="text-[var(--text-primary)]">{patient?.abhaId}</strong>
+            {patient?.abhaAddress && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span className="font-sans text-[var(--text-muted)]">{patient.abhaAddress}</span>
+              </>
+            )}
           </p>
         </div>
 
-        {/* Print / Download Button */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrint}
-            className="bg-[#1A5FB4] hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
-          >
-            <Printer className="w-4 h-4" />
-            <span>{t('printRecord')}</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handlePrint}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-xs font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] transition-colors cursor-pointer self-start md:self-center shrink-0"
+        >
+          <Printer className="w-4 h-4" aria-hidden="true" />
+          <span>{t('printRecord')}</span>
+        </button>
       </div>
 
-      {/* Navigation Sub-Tabs in Clean Minimalism pill styling */}
-      <div className="flex flex-wrap items-center gap-1.5 bg-[#F0F5F9] p-1.5 rounded-full border border-gray-200 w-fit">
+      {/* Segmented Section Tabs */}
+      <div
+        role="tablist"
+        aria-label="Health record categories"
+        className="inline-flex flex-wrap items-center gap-1 bg-[var(--bg-subtle)] p-1 rounded-lg border border-[var(--border-default)]"
+      >
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'PRESCRIPTIONS'}
           onClick={() => setActiveTab('PRESCRIPTIONS')}
-          className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'PRESCRIPTIONS'
-              ? 'bg-white text-[#1A5FB4] shadow-xs'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <FileText className="w-4 h-4 text-[#1A5FB4]" />
-          <span>{t('myPrescriptions')} ({prescriptions.length})</span>
+          <FileText className="w-4 h-4" aria-hidden="true" />
+          <span>
+            {t('myPrescriptions')} ({prescriptions.length})
+          </span>
         </button>
 
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'VACCINES'}
           onClick={() => setActiveTab('VACCINES')}
-          className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'VACCINES'
-              ? 'bg-white text-[#1A5FB4] shadow-xs'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <Syringe className="w-4 h-4 text-[#26A269]" />
-          <span>{t('vaccineSchedule')} ({vaccinations.length})</span>
+          <Syringe className="w-4 h-4" aria-hidden="true" />
+          <span>
+            {t('vaccineSchedule')} ({vaccinations.length})
+          </span>
         </button>
 
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'AI_TRIAGE'}
           onClick={() => setActiveTab('AI_TRIAGE')}
-          className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'AI_TRIAGE'
-              ? 'bg-white text-[#1A5FB4] shadow-xs'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <Bot className="w-4 h-4 text-indigo-600" />
-          <span>{t('aiTriageReports')} ({triageHistory.length})</span>
+          <ClipboardList className="w-4 h-4" aria-hidden="true" />
+          <span>
+            {t('aiTriageReports')} ({triageHistory.length})
+          </span>
         </button>
 
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'ABHA_CARD'}
           onClick={() => setActiveTab('ABHA_CARD')}
-          className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'ABHA_CARD'
-              ? 'bg-white text-[#1A5FB4] shadow-xs'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <QrCode className="w-4 h-4 text-[#1A5FB4]" />
+          <QrCode className="w-4 h-4" aria-hidden="true" />
           <span>{t('abhaCard')}</span>
         </button>
       </div>
 
-      {/* Tab 1: Prescriptions Grid */}
+      {/* Tab 1: Prescriptions */}
       {activeTab === 'PRESCRIPTIONS' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* List of Prescriptions (4 cols) */}
-          <div className="lg:col-span-4 space-y-3">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-4 space-y-2.5">
             {prescriptions.map((rx) => {
               const isSelected = selectedPrescription?.id === rx.id;
               return (
-                <div
+                <button
                   key={rx.id}
+                  type="button"
                   onClick={() => setSelectedPrescription(rx)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
+                  className={`w-full text-left p-4 rounded-xl border transition-colors cursor-pointer space-y-1 ${
                     isSelected
-                      ? 'bg-[#DEE9F7] border-[#1A5FB4] ring-2 ring-blue-200'
-                      : 'bg-white border-gray-200 hover:border-gray-300'
+                      ? 'bg-[var(--brand-primary-tint)] border-[var(--brand-primary)]'
+                      : 'bg-white border-[var(--border-default)] hover:border-[var(--border-strong)]'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-xs font-bold text-gray-500 mb-1">
+                  <div className="flex items-center justify-between text-xs text-[var(--text-muted)] tabular-nums">
                     <span>{rx.date}</span>
-                    <span className="text-[#1A5FB4] bg-white px-2 py-0.5 rounded border border-blue-200">
-                      {rx.id}
-                    </span>
+                    <span className="font-mono font-medium text-[var(--brand-primary)]">{rx.id}</span>
                   </div>
-
-                  <div className="font-bold text-sm text-[#1A1A1B]">
-                    {language === 'hi' ? rx.diagnosisHi : rx.diagnosis}
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">
+                    {language === 'hi' && rx.diagnosisHi ? rx.diagnosisHi : rx.diagnosis}
                   </div>
-
-                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
-                    <Stethoscope className="w-3.5 h-3.5 text-[#26A269]" />
-                    <span>{rx.doctorName}</span>
-                  </div>
-                </div>
+                  <div className="text-xs text-[var(--text-secondary)]">{rx.doctorName}</div>
+                </button>
               );
             })}
           </div>
 
-          {/* Detailed Printable Prescription Preview (8 cols) */}
           {selectedPrescription && (
-            <div className="lg:col-span-8 bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
-              
-              {/* Prescription Official Header */}
-              <div className="border-b-2 border-gray-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-[#26A269]">
-                    Government of Uttar Pradesh • Department of Medical Health
+            <article className="lg:col-span-8 bg-white rounded-xl p-6 sm:p-8 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-6">
+              <div className="pb-4 border-b border-[var(--border-default)] flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-semibold text-[var(--brand-teal)]">
+                    Department of Medical Health & Family Welfare
                   </div>
-                  <h3 className="text-lg font-bold text-[#1A1A1B]">
+                  <h2 className="text-lg font-bold text-[var(--text-primary)]">
                     {selectedPrescription.facilityName}
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    {selectedPrescription.doctorName} (Reg: {selectedPrescription.doctorRegistrationNo})
+                  </h2>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    {selectedPrescription.doctorName}
+                    {selectedPrescription.doctorRegistrationNo &&
+                      ` · Reg. ${selectedPrescription.doctorRegistrationNo}`}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
+                    type="button"
                     onClick={toggleSpeakPrescription}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      isSpeakingRx
-                        ? 'bg-red-50 text-[#E01B24] border-red-200 ring-2 ring-red-100'
-                        : 'bg-[#DEE9F7] text-[#1A5FB4] border-blue-200 hover:bg-blue-100'
-                    }`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--bg-canvas)] text-[var(--text-primary)] border border-[var(--border-default)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
                   >
                     {isSpeakingRx ? (
                       <>
-                        <Square className="w-3.5 h-3.5 fill-current animate-pulse" />
+                        <Square className="w-3.5 h-3.5 text-[var(--status-danger)]" aria-hidden="true" />
                         <span>{language === 'hi' ? 'रोकें' : 'Stop'}</span>
                       </>
                     ) : (
                       <>
-                        <Volume2 className="w-3.5 h-3.5" />
-                        <span>{language === 'hi' ? 'दवाइयां सुनें' : 'Listen Rx'}</span>
+                        <Volume2 className="w-3.5 h-3.5 text-[var(--brand-primary)]" aria-hidden="true" />
+                        <span>{t('voiceOutputPlay')}</span>
                       </>
                     )}
                   </button>
 
-                  <div className="text-left sm:text-right text-xs">
-                    <div className="font-mono font-bold text-[#1A1A1B]">Date: {selectedPrescription.date}</div>
-                    <div className="text-gray-500">Rx ID: {selectedPrescription.id}</div>
+                  <div className="text-xs text-right tabular-nums">
+                    <div className="font-mono font-semibold text-[var(--text-primary)]">
+                      {selectedPrescription.date}
+                    </div>
+                    <div className="text-[var(--text-muted)]">Rx: {selectedPrescription.id}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Patient Demographics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-[#F0F5F9] rounded-xl border border-gray-200 text-xs">
+              {/* Patient Metadata Strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)] text-xs">
                 <div>
-                  <span className="text-gray-500 font-bold block">Patient Name:</span>
-                  <span className="font-bold text-[#1A1A1B]">{selectedPrescription.patientName}</span>
+                  <div className="text-[var(--text-muted)]">{t('patientName')}</div>
+                  <div className="font-semibold text-[var(--text-primary)] mt-0.5">
+                    {selectedPrescription.patientName}
+                  </div>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-bold block">Age / Gender:</span>
-                  <span className="font-medium text-[#1A1A1B]">{selectedPrescription.patientAge} Yrs / {selectedPrescription.patientGender}</span>
+                  <div className="text-[var(--text-muted)]">{t('ageGender')}</div>
+                  <div className="font-medium text-[var(--text-primary)] tabular-nums mt-0.5">
+                    {selectedPrescription.patientAge} yrs / {selectedPrescription.patientGender}
+                  </div>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-bold block">ABHA ID:</span>
-                  <span className="font-mono font-bold text-[#1A5FB4]">{patient?.abhaId}</span>
+                  <div className="text-[var(--text-muted)]">{t('abhaNumber')}</div>
+                  <div className="font-mono font-semibold text-[var(--brand-primary)] tabular-nums mt-0.5">
+                    {patient?.abhaId}
+                  </div>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-bold block">Follow-up:</span>
-                  <span className="font-bold text-[#26A269]">{selectedPrescription.followUpDate || '3 Days'}</span>
+                  <div className="text-[var(--text-muted)]">Follow-up</div>
+                  <div className="font-medium text-[var(--text-primary)] mt-0.5">
+                    {selectedPrescription.followUpDate || 'As advised'}
+                  </div>
                 </div>
               </div>
 
-              {/* Clinical Diagnosis */}
-              <div>
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                  Diagnosis:
-                </span>
-                <div className="p-3 bg-[#DEE9F7] border border-blue-200 rounded-xl text-sm font-bold text-[#1A5FB4]">
-                  {selectedPrescription.diagnosis}
+              {/* Diagnosis */}
+              <div className="space-y-1">
+                <h3 className="text-xs font-semibold text-[var(--text-muted)]">{t('rxDiagnosis')}</h3>
+                <div className="p-3.5 rounded-lg bg-[var(--brand-primary-tint)] border border-[var(--brand-primary-border)] text-sm font-semibold text-[var(--brand-primary)]">
+                  {language === 'hi' && selectedPrescription.diagnosisHi
+                    ? selectedPrescription.diagnosisHi
+                    : selectedPrescription.diagnosis}
                 </div>
               </div>
 
-              {/* Prescribed Medicines */}
-              <div className="space-y-3">
-                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
-                  {language === 'hi' ? '℞ निर्धारित दवाइयां (जन औषधि):' : '℞ Prescribed Generic Medicines:'}
-                </span>
-
-                <div className="space-y-2">
+              {/* Medications */}
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-semibold text-[var(--text-muted)]">{t('rxMedicines')}</h3>
+                <div className="border border-[var(--border-default)] rounded-lg overflow-hidden divide-y divide-[var(--border-default)]">
                   {selectedPrescription.medicines.map((med, idx) => (
-                    <div key={idx} className="p-3 bg-[#F0F5F9] rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div
+                      key={med.id || idx}
+                      className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm"
+                    >
                       <div>
-                        <div className="font-bold text-[#1A1A1B] text-sm">
+                        <div className="font-semibold text-[var(--text-primary)]">
                           {idx + 1}. {med.name}
                         </div>
-                        <div className="text-[#26A269] font-bold mt-0.5">
-                          {language === 'hi' ? (med.frequencyHi || med.frequency) : med.frequency}
+                        <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                          {language === 'hi' ? med.frequencyHi || med.frequency : med.frequency}
                         </div>
-                        {med.instructions && (
-                          <div className="text-[11px] text-gray-500">
-                            {language === 'hi' ? `निर्देश: ${med.instructions}` : `Note: ${med.instructions}`}
+                        {(med.instructions || med.instructionsHi) && (
+                          <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                            {language === 'hi'
+                              ? med.instructionsHi || med.instructions
+                              : med.instructions}
                           </div>
                         )}
                       </div>
-
-                      <div className="text-right">
-                        <span className="bg-white border border-gray-300 font-bold px-2 py-1 rounded-md text-xs">
-                          {med.duration}
-                        </span>
-                      </div>
+                      <span className="text-xs font-semibold text-[var(--text-primary)] tabular-nums bg-[var(--bg-canvas)] px-2.5 py-1 rounded border border-[var(--border-default)] self-start sm:self-center">
+                        {med.duration}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Lab Tests & Doctor Advice */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                {selectedPrescription.labTests && selectedPrescription.labTests.length > 0 && (
-                  <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200">
-                    <span className="font-bold text-amber-900 block mb-1">
-                      {language === 'hi' ? '🔬 सुझाई गई जांच:' : '🔬 Recommended Diagnostic Tests:'}
-                    </span>
-                    <ul className="list-disc list-inside text-amber-950 font-medium space-y-0.5">
-                      {selectedPrescription.labTests.map((tst, i) => (
+              {/* Recommended Tests & Advice */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                {rxLabTests.length > 0 && (
+                  <div className="p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)] space-y-1.5">
+                    <h3 className="text-xs font-semibold text-[var(--text-muted)]">{t('rxLabTests')}</h3>
+                    <ul className="list-disc list-inside text-xs text-[var(--text-primary)] space-y-1">
+                      {rxLabTests.map((tst, i) => (
                         <li key={i}>{tst}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                <div className="p-3.5 bg-[#F0F5F9] rounded-xl border border-gray-200">
-                  <span className="font-bold text-gray-700 block mb-1">
-                    {language === 'hi' ? '📋 डॉक्टर की सलाह:' : '📋 General Doctor Advice:'}
-                  </span>
-                  <p className="text-gray-800 font-medium">
-                    {selectedPrescription.advice}
-                  </p>
-                </div>
+                {rxAdviceText && (
+                  <div className="p-4 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)] space-y-1.5">
+                    <h3 className="text-xs font-semibold text-[var(--text-muted)]">{t('rxAdvice')}</h3>
+                    <p className="text-xs text-[var(--text-primary)] leading-relaxed">{rxAdviceText}</p>
+                  </div>
+                )}
               </div>
 
-              {/* Doctor Digital Signature */}
-              <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-[11px] text-gray-400">
-                  Digitally signed under Section 5 of Information Technology Act 2000.
-                </div>
-                <div className="text-right">
-                  <div className="font-serif italic font-bold text-[#1A5FB4] text-sm">
-                    {selectedPrescription.doctorName}
-                  </div>
-                  <div className="text-[10px] text-gray-500">
-                    Medical Officer, PHC Sitapur
-                  </div>
-                </div>
+              <div className="pt-4 border-t border-[var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                <span>Digitally verified outpatient record under ABDM guidelines.</span>
+                <span className="font-semibold text-[var(--text-primary)]">
+                  {selectedPrescription.doctorName}
+                </span>
               </div>
-
-            </div>
+            </article>
           )}
-
         </div>
       )}
 
-      {/* Tab 2: Mission Indradhanush Vaccination Schedule */}
+      {/* Tab 2: Immunizations */}
       {activeTab === 'VACCINES' && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-5">
+        <section className="bg-white rounded-xl p-6 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-[#26A269] text-xs font-bold px-3 py-1 rounded-full mb-2">
-              <Syringe className="w-3.5 h-3.5" />
-              <span>Universal Immunization Programme (UIP)</span>
-            </div>
-            <h3 className="text-xl font-bold text-[#1A1A1B]">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
               {t('vaccineSchedule')}
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Government of India Universal Free Vaccination Tracker
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Universal Immunization Programme (UIP) records
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {vaccinations.map((vac) => (
-              <div
-                key={vac.id}
-                className="p-4 rounded-xl border border-gray-200 bg-[#F0F5F9] hover:bg-gray-100 transition-all flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white ${
-                    vac.status === 'COMPLETED' ? 'bg-[#26A269]' : 'bg-amber-500'
-                  }`}>
-                    {vac.status === 'COMPLETED' ? '✓' : '⏳'}
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm text-[#1A1A1B]">
-                      {vac.vaccineName}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Beneficiary: <strong>{vac.beneficiaryName}</strong> ({vac.category})
-                    </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      Due: {vac.dueDate} {vac.administeredDate ? `• Given: ${vac.administeredDate}` : ''}
-                    </div>
-                  </div>
-                </div>
-
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                  vac.status === 'COMPLETED'
-                    ? 'bg-emerald-100 text-[#26A269]'
-                    : 'bg-amber-100 text-amber-900'
-                }`}>
-                  {vac.status === 'COMPLETED' ? t('vaccineGiven') : t('vaccineDue')}
-                </span>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border-default)] text-xs text-[var(--text-muted)]">
+                  <th className="py-3 pr-4 font-semibold">Vaccine</th>
+                  <th className="py-3 px-4 font-semibold">Dose</th>
+                  <th className="py-3 px-4 font-semibold">Facility</th>
+                  <th className="py-3 px-4 font-semibold">Date</th>
+                  <th className="py-3 pl-4 font-semibold text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-default)] tabular-nums">
+                {vaccinations.map((vac) => (
+                  <tr key={vac.id}>
+                    <td className="py-3.5 pr-4 font-medium text-[var(--text-primary)]">
+                      {language === 'hi' && vac.vaccineNameHi ? vac.vaccineNameHi : vac.vaccineName}
+                    </td>
+                    <td className="py-3.5 px-4 text-[var(--text-secondary)]">{vac.dose}</td>
+                    <td className="py-3.5 px-4 text-[var(--text-secondary)]">{vac.facilityName}</td>
+                    <td className="py-3.5 px-4 text-[var(--text-secondary)]">
+                      {vac.administeredDate || vac.dueDate || vac.dateAdministered}
+                    </td>
+                    <td className="py-3.5 pl-4 text-right">
+                      <span
+                        className={`inline-block px-2.5 py-0.5 rounded text-xs font-semibold ${
+                          vac.status === 'COMPLETED'
+                            ? 'bg-[var(--status-success-bg)] text-[var(--status-success)]'
+                            : 'bg-[var(--status-warning-bg)] text-[var(--status-warning)]'
+                        }`}
+                      >
+                        {vac.status === 'COMPLETED' ? t('vaccineGiven') : t('vaccineDue')}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Tab 3: AI Triage History */}
+      {/* Tab 3: Triage History */}
       {activeTab === 'AI_TRIAGE' && (
         <div className="space-y-4">
           {triageHistory.map((tr) => (
-            <div
+            <article
               key={tr.id}
-              className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-3"
+              className="bg-white rounded-xl p-6 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-4"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-indigo-600" />
-                  <span className="font-bold text-sm text-[#1A1A1B]">{tr.chiefComplaint}</span>
-                  <span className="text-xs text-gray-400 font-mono">({tr.id})</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[var(--border-default)]">
+                <div>
+                  <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                    {language === 'hi' ? tr.chiefComplaintHi : tr.chiefComplaint}
+                  </h2>
+                  <p className="text-xs text-[var(--text-muted)] font-mono tabular-nums mt-0.5">
+                    {tr.id} · {tr.createdAt} · {language === 'hi' ? tr.recommendedDepartmentHi : tr.recommendedDepartment}
+                  </p>
                 </div>
-
-                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                  tr.riskLevel === 'Red'
-                    ? 'bg-[#E01B24] text-white'
+                <span
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${getRiskBadge(
+                    tr.riskLevel
+                  )}`}
+                >
+                  {tr.riskLevel === 'Red'
+                    ? t('riskRed')
                     : tr.riskLevel === 'Yellow'
-                    ? 'bg-amber-500 text-white'
-                    : 'bg-[#26A269] text-white'
-                }`}>
-                  {tr.riskLevel} Risk
+                      ? t('riskYellow')
+                      : t('riskGreen')}
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-[#F0F5F9] p-3 rounded-xl">
-                <div>
-                  <span className="font-bold text-gray-500 block mb-1">Spoken Query ({tr.languageInput.toUpperCase()}):</span>
-                  <p className="font-medium text-[#1A1A1B]">"{tr.rawInput}"</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="p-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)]">
+                  <div className="text-xs font-semibold text-[var(--text-muted)] mb-1">
+                    {t('patientSpoke')}
+                  </div>
+                  <p className="text-[var(--text-primary)]">"{tr.rawInput}"</p>
                 </div>
-                <div>
-                  <span className="font-bold text-[#1A5FB4] block mb-1">AI Clinical Translation:</span>
-                  <p className="font-bold text-[#1A1A1B]">"{tr.translatedInputEn}"</p>
+                <div className="p-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)]">
+                  <div className="text-xs font-semibold text-[var(--brand-primary)] mb-1">
+                    {language === 'hi' ? 'नैदानिक सारांश' : 'Clinical Summary'}
+                  </div>
+                  <p className="text-[var(--text-primary)]">{tr.translatedInputEn}</p>
                 </div>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
 
-      {/* Tab 4: Official ABHA Card QR View */}
+      {/* Tab 4: ABHA Digital Health Card */}
       {activeTab === 'ABHA_CARD' && (
-        <div className="max-w-md mx-auto bg-white text-[#1A1A1B] rounded-2xl p-6 sm:p-8 shadow-sm border-2 border-[#1A5FB4] relative overflow-hidden">
-          
-          <div className="flex items-center justify-between border-b border-gray-200 pb-4 mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#1A5FB4] text-white font-bold text-xs flex items-center justify-center">
+        <div className="max-w-lg mx-auto bg-white rounded-xl p-6 sm:p-8 border border-[var(--brand-primary)] shadow-[var(--shadow-card)] space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-[var(--border-default)]">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-md bg-[var(--brand-primary)] text-white font-semibold text-xs flex items-center justify-center">
                 ABDM
               </div>
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                  National Health Authority
-                </div>
-                <div className="text-sm font-bold text-[#1A5FB4]">
-                  Ayushman Bharat Health Card
+                <div className="text-xs text-[var(--text-muted)]">National Health Authority</div>
+                <div className="text-sm font-bold text-[var(--text-primary)]">
+                  Ayushman Bharat Health Account (ABHA)
                 </div>
               </div>
             </div>
-            <ShieldCheck className="w-6 h-6 text-[#26A269]" />
+            <ShieldCheck className="w-5 h-5 text-[var(--brand-teal)]" aria-hidden="true" />
           </div>
 
-          <div className="flex items-center justify-between gap-4 my-6">
-            <div>
-              <div className="text-xs text-gray-500 uppercase font-bold">Name:</div>
-              <div className="text-lg font-bold text-[#1A1A1B]">{patient?.name}</div>
-              
-              <div className="text-xs text-gray-500 uppercase font-bold mt-2">ABHA Number:</div>
-              <div className="text-base font-mono font-bold tracking-widest text-[#1A5FB4]">
-                {patient?.abhaId}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-xs text-[var(--text-muted)]">{t('patientName')}</dt>
+                <dd className="text-base font-bold text-[var(--text-primary)]">{patient?.name}</dd>
               </div>
+              <div>
+                <dt className="text-xs text-[var(--text-muted)]">{t('abhaNumber')}</dt>
+                <dd className="text-base font-mono font-semibold text-[var(--brand-primary)] tabular-nums">
+                  {patient?.abhaId}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-[var(--text-muted)]">{t('address')}</dt>
+                <dd className="text-xs text-[var(--text-secondary)]">
+                  {patient?.village}, {patient?.district}, {patient?.state}
+                </dd>
+              </div>
+            </dl>
 
-              <div className="text-xs text-gray-500 uppercase font-bold mt-2">Village & State:</div>
-              <div className="text-xs font-medium text-gray-700">
-                {patient?.village}, Uttar Pradesh
-              </div>
+            <div className="p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)] flex flex-col items-center justify-center shrink-0 self-start sm:self-center">
+              <QrCode className="w-20 h-20 text-[var(--brand-primary)]" aria-hidden="true" />
+              <span className="text-[10px] font-mono text-[var(--text-muted)] mt-1">
+                ABHA VERIFIED
+              </span>
             </div>
-
-            {/* QR Code Graphic simulation */}
-            <div className="bg-[#F0F5F9] p-2.5 rounded-xl border border-gray-200 shrink-0">
-              <div className="w-24 h-24 bg-white rounded-lg flex flex-col items-center justify-center p-2 text-center border border-gray-200">
-                <QrCode className="w-16 h-16 text-[#1A5FB4]" />
-                <span className="text-[8px] font-mono text-[#26A269] font-bold">ABHA SCAN</span>
-              </div>
-            </div>
           </div>
 
-          <div className="pt-3 border-t border-gray-200 text-center text-[10px] text-gray-500">
-            Valid across all AIIMS, District Hospitals, CHCs, and PHCs across India.
-          </div>
-
+          <p className="pt-4 border-t border-[var(--border-default)] text-xs text-[var(--text-muted)] text-center">
+            Valid across participating Government Hospitals, CHCs, and Primary Health Centres across India.
+          </p>
         </div>
       )}
-
     </div>
   );
 };

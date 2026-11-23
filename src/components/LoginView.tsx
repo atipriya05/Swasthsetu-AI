@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { User, Stethoscope, Smartphone, Lock, ShieldCheck, ArrowRight, Sparkles } from 'lucide-react';
+import { User, Stethoscope, Smartphone, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface LoginViewProps {
   onSuccessLogin: () => void;
@@ -13,11 +13,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccessLogin }) => {
 
   const [activeTab, setActiveTab] = useState<'patient' | 'doctor'>('patient');
 
-  // Patient Login State
   const [mobile, setMobile] = useState('9876543210');
   const [otp, setOtp] = useState('123456');
 
-  // Doctor Login State
   const [doctorIdentifier, setDoctorIdentifier] = useState('DOC-UP-8842');
   const [password, setPassword] = useState('health123');
 
@@ -26,160 +24,148 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccessLogin }) => {
   const handlePatientSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = loginPatient(mobile, otp);
+    const success = loginPatient(mobile.trim(), otp.trim());
     if (success) {
       onSuccessLogin();
     } else {
-      setError(language === 'hi' ? 'कृपया 10 अंकों का मोबाइल व 6 अंकों का सही OTP (उदा. 123456) दर्ज करें।' : 'Please enter 10-digit mobile number and valid 6-digit OTP (e.g. 123456).');
+      setError(
+        language === 'hi'
+          ? 'कृपया वैध 10-अंकीय मोबाइल नंबर और 6-अंकीय ओटीपी (डेमो: 123456) दर्ज करें।'
+          : 'Please enter a valid 10-digit mobile number and 6-digit passcode (demo: 123456).'
+      );
     }
   };
 
   const handleDoctorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = loginDoctor(doctorIdentifier, password);
+    const success = loginDoctor(doctorIdentifier.trim(), password);
     if (success) {
       onSuccessLogin();
     } else {
-      setError(language === 'hi' ? 'अमान्य डॉक्टर आईडी या पासवर्ड। डेमो: DOC-UP-8842 / health123' : 'Invalid Doctor ID or password. Demo: DOC-UP-8842 / health123');
+      setError(
+        language === 'hi'
+          ? 'अमान्य चिकित्सा अधिकारी आईडी या पासवर्ड। डेमो: DOC-UP-8842 / health123'
+          : 'Invalid Medical Officer ID or password. Demo credentials: DOC-UP-8842 / health123'
+      );
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto py-6 sm:py-10 px-4">
-      
-      {/* Portal Header Banner */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm mb-6 text-center">
-        <div className="inline-flex items-center gap-1.5 bg-[#DEE9F7] text-[#1A5FB4] text-xs font-bold px-3 py-1 rounded-full mb-3 border border-blue-200">
-          <Sparkles className="w-3.5 h-3.5 text-[#1A5FB4]" />
-          {t('sihTag')}
+    <div className="max-w-lg mx-auto py-8 sm:py-12">
+      <div className="bg-white rounded-xl border border-[var(--border-default)] shadow-[var(--shadow-card)] overflow-hidden">
+        {/* Portal Header */}
+        <div className="px-6 py-6 border-b border-[var(--border-default)] space-y-1.5">
+          <p className="text-xs font-semibold text-[var(--brand-teal)]">{t('sihTag')}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
+            {t('loginTitle')}
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)]">{t('loginSubtitle')}</p>
         </div>
 
-        <h1 className="text-xl sm:text-2xl font-bold text-[#1A1A1B] tracking-tight">
-          {t('loginTitle')}
-        </h1>
-        <p className="text-gray-500 text-xs sm:text-sm mt-1 max-w-md mx-auto">
-          {t('loginSubtitle')}
-        </p>
-
-        {/* 1-Click Instant Demo Credentials */}
-        <div className="mt-5 pt-4 border-t border-gray-100">
-          <div className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2.5">
-            ⚡ {t('quickDemoCredentials')}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <button
-              onClick={() => {
-                quickDemoLogin('patient');
-                onSuccessLogin();
-              }}
-              className="bg-[#DEE9F7] hover:bg-blue-100 text-[#1A5FB4] font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-2 border border-blue-200 transition-colors cursor-pointer"
-            >
-              <User className="w-4 h-4 text-[#1A5FB4]" />
-              <span>{t('loginAsPatientDemo')}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                quickDemoLogin('doctor');
-                onSuccessLogin();
-              }}
-              className="bg-emerald-50 hover:bg-emerald-100 text-[#26A269] font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-2 border border-emerald-200 transition-colors cursor-pointer"
-            >
-              <Stethoscope className="w-4 h-4 text-[#26A269]" />
-              <span>{t('loginAsDoctorDemo')}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Dual Login Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        
-        {/* Tab Switcher */}
-        <div className="grid grid-cols-2 p-1.5 bg-[#F0F5F9] gap-1.5 border-b border-gray-200">
+        {/* Role Tab Selector */}
+        <div
+          role="tablist"
+          aria-label="Account type"
+          className="grid grid-cols-2 p-1.5 bg-[var(--bg-subtle)] border-b border-[var(--border-default)] gap-1.5"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'patient'}
             onClick={() => {
               setActiveTab('patient');
               setError('');
             }}
-            className={`py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`py-2.5 px-3 rounded-md text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors cursor-pointer ${
               activeTab === 'patient'
-                ? 'bg-white text-[#1A5FB4] shadow-2xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            <User className="w-4 h-4" />
+            <User className="w-4 h-4" aria-hidden="true" />
             <span>{t('patientTab')}</span>
           </button>
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'doctor'}
             onClick={() => {
               setActiveTab('doctor');
               setError('');
             }}
-            className={`py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`py-2.5 px-3 rounded-md text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors cursor-pointer ${
               activeTab === 'doctor'
-                ? 'bg-white text-[#26A269] shadow-2xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            <Stethoscope className="w-4 h-4" />
+            <Stethoscope className="w-4 h-4" aria-hidden="true" />
             <span>{t('doctorTab')}</span>
           </button>
         </div>
 
-        {/* Error Notice */}
+        {/* Validation Error */}
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-[#E01B24] text-xs font-semibold rounded-xl">
+          <div
+            role="alert"
+            className="mx-6 mt-5 p-3 rounded-md bg-[var(--status-danger-bg)] border border-[var(--status-danger-border)] text-[var(--status-danger)] text-xs font-medium"
+          >
             {error}
           </div>
         )}
 
-        {/* Patient Form (Mobile + OTP) */}
+        {/* Patient Form */}
         {activeTab === 'patient' && (
-          <form onSubmit={handlePatientSubmit} className="p-6 sm:p-8 space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
+          <form onSubmit={handlePatientSubmit} className="p-6 space-y-4" noValidate>
+            <div className="space-y-1.5">
+              <label
+                htmlFor="patient-mobile"
+                className="block text-xs font-semibold text-[var(--text-primary)]"
+              >
                 {t('mobileNumber')}
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                  <Smartphone className="w-4 h-4" />
-                </div>
+                <Smartphone
+                  className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
                 <input
+                  id="patient-mobile"
                   type="tel"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
                   placeholder={t('mobilePlaceholder')}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0F5F9] border border-gray-200 rounded-xl text-sm font-medium text-[#1A1A1B] focus:bg-white focus:ring-2 focus:ring-[#1A5FB4] outline-hidden transition-all"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] focus:bg-white focus:border-[var(--brand-primary)]"
                   required
                 />
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-gray-700">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="patient-otp"
+                  className="text-xs font-semibold text-[var(--text-primary)]"
+                >
                   {t('enterOtp')}
                 </label>
-                <span className="text-[11px] font-semibold text-[#26A269] bg-emerald-50 px-2 py-0.5 rounded">
-                  Demo OTP: 123456
-                </span>
+                <span className="text-xs text-[var(--text-muted)] font-mono">Demo: 123456</span>
               </div>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
+                <ShieldCheck
+                  className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
                 <input
+                  id="patient-otp"
                   type="text"
                   maxLength={6}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   placeholder={t('otpPlaceholder')}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0F5F9] border border-gray-200 rounded-xl text-sm font-mono tracking-widest font-bold text-[#1A1A1B] focus:bg-white focus:ring-2 focus:ring-[#1A5FB4] outline-hidden transition-all"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm font-mono tracking-widest text-[var(--text-primary)] focus:bg-white focus:border-[var(--brand-primary)]"
                   required
                 />
               </div>
@@ -187,61 +173,63 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccessLogin }) => {
 
             <button
               type="submit"
-              className="w-full bg-[#1A5FB4] hover:bg-blue-700 active:scale-98 text-white font-bold py-3.5 px-6 rounded-xl text-sm sm:text-base flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer mt-2"
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] transition-colors cursor-pointer"
             >
               <span>{t('verifyLogin')}</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
-
-            <p className="text-center text-[11px] text-gray-400">
-              {language === 'hi' 
-                ? 'राष्ट्रीय स्वास्थ्य प्राधिकरण (NHA) एवं आयुष्मान भारत डिजिटल मिशन (ABDM) सुरक्षा मानकों के अनुकूल।'
-                : 'Secured under National Health Authority (NHA) & Ayushman Bharat Digital Mission.'}
-            </p>
           </form>
         )}
 
-        {/* Doctor Form (Doctor ID + Password) */}
+        {/* Doctor Form */}
         {activeTab === 'doctor' && (
-          <form onSubmit={handleDoctorSubmit} className="p-6 sm:p-8 space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
+          <form onSubmit={handleDoctorSubmit} className="p-6 space-y-4" noValidate>
+            <div className="space-y-1.5">
+              <label
+                htmlFor="doctor-id"
+                className="block text-xs font-semibold text-[var(--text-primary)]"
+              >
                 {t('doctorIdentifier')}
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                  <Stethoscope className="w-4 h-4 text-[#26A269]" />
-                </div>
+                <Stethoscope
+                  className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
                 <input
+                  id="doctor-id"
                   type="text"
                   value={doctorIdentifier}
                   onChange={(e) => setDoctorIdentifier(e.target.value)}
                   placeholder={t('doctorPlaceholder')}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0F5F9] border border-gray-200 rounded-xl text-sm font-medium text-[#1A1A1B] focus:bg-white focus:ring-2 focus:ring-[#26A269] outline-hidden transition-all"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] focus:bg-white focus:border-[var(--brand-primary)]"
                   required
                 />
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-gray-700">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="doctor-password"
+                  className="text-xs font-semibold text-[var(--text-primary)]"
+                >
                   {t('password')}
                 </label>
-                <span className="text-[11px] font-semibold text-[#26A269] bg-emerald-50 px-2 py-0.5 rounded">
-                  Demo: health123
-                </span>
+                <span className="text-xs text-[var(--text-muted)] font-mono">Demo: health123</span>
               </div>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                  <Lock className="w-4 h-4" />
-                </div>
+                <Lock
+                  className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
                 <input
+                  id="doctor-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t('passwordPlaceholder')}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0F5F9] border border-gray-200 rounded-xl text-sm font-medium text-[#1A1A1B] focus:bg-white focus:ring-2 focus:ring-[#26A269] outline-hidden transition-all"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] focus:bg-white focus:border-[var(--brand-primary)]"
                   required
                 />
               </div>
@@ -249,22 +237,43 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccessLogin }) => {
 
             <button
               type="submit"
-              className="w-full bg-[#26A269] hover:bg-emerald-700 active:scale-98 text-white font-bold py-3.5 px-6 rounded-xl text-sm sm:text-base flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer mt-2"
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] transition-colors cursor-pointer"
             >
               <span>{t('doctorLoginBtn')}</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
-
-            <p className="text-center text-[11px] text-gray-400">
-              {language === 'hi'
-                ? 'प्राथमिक स्वास्थ्य केंद्र (PHC) एवं सामुदायिक स्वास्थ्य केंद्र (CHC) डॉक्टरों के लिए अधिकृत पोर्टल।'
-                : 'Authorized login for PHC, CHC, and District Hospital Medical Officers.'}
-            </p>
           </form>
         )}
 
+        {/* Quick Demo Access Footer */}
+        <div className="px-6 py-4 bg-[var(--bg-canvas)] border-t border-[var(--border-default)] space-y-2.5">
+          <div className="text-xs font-semibold text-[var(--text-muted)]">
+            {t('quickDemoCredentials')}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                quickDemoLogin('patient');
+                onSuccessLogin();
+              }}
+              className="py-2 px-3 rounded-md text-xs font-semibold text-[var(--brand-primary)] bg-white border border-[var(--border-strong)] hover:bg-[var(--brand-primary-tint)] transition-colors cursor-pointer"
+            >
+              {t('loginAsPatientDemo')}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                quickDemoLogin('doctor');
+                onSuccessLogin();
+              }}
+              className="py-2 px-3 rounded-md text-xs font-semibold text-[var(--brand-teal)] bg-white border border-[var(--border-strong)] hover:bg-[var(--brand-teal-tint)] transition-colors cursor-pointer"
+            >
+              {t('loginAsDoctorDemo')}
+            </button>
+          </div>
+        </div>
       </div>
-
     </div>
   );
 };

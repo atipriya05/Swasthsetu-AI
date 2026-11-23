@@ -1,8 +1,8 @@
-export type Language = 'en' | 'hi' | 'mr';
+export type Language = 'en' | 'hi';
 
 export type FacilityType = 'GOVT_HOSPITAL' | 'PHC' | 'CHC' | 'SPECIALIST_CLINIC';
 
-export type Specialty = 
+export type Specialty =
   | 'General Physician'
   | 'Pediatrician'
   | 'Gynecologist'
@@ -16,7 +16,6 @@ export interface HealthcareFacility {
   id: string;
   name: string;
   nameHi: string;
-  nameMr: string;
   type: FacilityType;
   lat: number;
   lng: number;
@@ -24,7 +23,6 @@ export interface HealthcareFacility {
   travelTimeMins: number;
   address: string;
   addressHi: string;
-  addressMr: string;
   emergencyAvailable: boolean;
   bedsAvailable: number;
   totalBeds: number;
@@ -35,6 +33,8 @@ export interface HealthcareFacility {
   opdTimings: string;
   opdTimingsHi: string;
   services: string[];
+  doctorAvailable?: boolean;
+  currentWaitMins?: number;
 }
 
 export interface PatientProfile {
@@ -71,7 +71,6 @@ export interface DoctorProfile {
   experienceYears: number;
   email: string;
   isAvailable: boolean;
-  avatarUrl?: string;
 }
 
 export interface AITriageReport {

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { PhoneCall, X, ShieldAlert, Navigation, Siren, CheckCircle2 } from 'lucide-react';
+import { PhoneCall, X, AlertTriangle, Navigation, CheckCircle2 } from 'lucide-react';
 
 interface EmergencyModalProps {
   isOpen: boolean;
@@ -11,140 +11,148 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose 
   const { language, t } = useLanguage();
   const [sosSent, setSosSent] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  const handleBroadcastSOS = () => {
-    setSosSent(true);
-    setTimeout(() => {
-      // Keep state
-    }, 1500);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-xl border border-gray-200">
-        
-        {/* Modal Header */}
-        <div className="bg-[#E01B24] p-6 text-white text-center relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          
-          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-2 ring-4 ring-white/20 animate-bounce">
-            <Siren className="w-8 h-8 text-white" />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/55"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="emergency-modal-title"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl max-w-lg w-full overflow-hidden shadow-[var(--shadow-elevated)] border border-[var(--border-default)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-[var(--status-danger)] px-6 py-5 text-white flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+            <div>
+              <h2 id="emergency-modal-title" className="text-lg font-bold">
+                {t('emergencyModalTitle')}
+              </h2>
+              <p className="text-xs text-red-100 mt-1 leading-relaxed">{t('sosDesc')}</p>
+            </div>
           </div>
-          
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
-            {t('emergencyModalTitle')}
-          </h2>
-          <p className="text-red-100 text-xs sm:text-sm mt-0.5">
-            {t('sosDesc')}
-          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-md text-red-100 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+            aria-label={t('close')}
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+          </button>
         </div>
 
-        {/* Modal Body */}
+        {/* Emergency Helplines */}
         <div className="p-6 space-y-3">
-          
-          {/* Main 108 Ambulance Call Button */}
           <a
             href="tel:108"
-            className="w-full bg-[#E01B24] hover:bg-[#c0171e] text-white p-4 rounded-xl flex items-center justify-between font-bold text-base shadow-xs transition-all group"
+            className="w-full p-4 rounded-lg bg-[var(--status-danger-bg)] border border-[var(--status-danger-border)] hover:bg-red-100/70 transition-colors flex items-center justify-between gap-3"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <PhoneCall className="w-5 h-5 fill-white" />
+              <div className="w-9 h-9 rounded-md bg-[var(--status-danger)] text-white flex items-center justify-center shrink-0">
+                <PhoneCall className="w-4 h-4" aria-hidden="true" />
               </div>
-              <div className="text-left">
-                <div className="text-lg font-bold">{t('call108')}</div>
-                <div className="text-xs text-red-100 font-normal">
-                  {language === 'hi' ? '24x7 निःशुल्क सरकारी एम्बुलेंस सेवा' : '24x7 Free Govt Emergency Ambulance'}
+              <div>
+                <div className="text-sm font-bold text-[var(--status-danger)]">{t('call108')}</div>
+                <div className="text-xs text-[var(--text-secondary)]">
+                  {language === 'hi'
+                    ? '24x7 निःशुल्क सरकारी एम्बुलेंस सेवा'
+                    : '24x7 Government Emergency Ambulance Dispatch'}
                 </div>
               </div>
             </div>
-            <span className="bg-white text-[#E01B24] px-3 py-1 rounded-lg font-mono text-base font-bold">
+            <span className="font-mono text-base font-bold text-[var(--status-danger)] tabular-nums">
               108
             </span>
           </a>
 
-          {/* 104 National Health Helpline */}
           <a
             href="tel:104"
-            className="w-full bg-[#1A5FB4] hover:bg-blue-700 text-white p-3.5 rounded-xl flex items-center justify-between font-bold text-sm shadow-xs transition-all group"
+            className="w-full p-3.5 rounded-lg bg-white border border-[var(--border-default)] hover:border-[var(--brand-primary)] transition-colors flex items-center justify-between gap-3"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <ShieldAlert className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold">{t('call104')}</div>
-                <div className="text-xs text-blue-100 font-normal">
-                  {language === 'hi' ? 'चिकित्सकीय सलाह व स्वास्थ्य मार्गदर्शन' : 'Doctor Medical Advisory & Helpline'}
-                </div>
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">{t('call104')}</div>
+              <div className="text-xs text-[var(--text-secondary)]">
+                {language === 'hi'
+                  ? 'सरकारी चिकित्सा परामर्श एवं स्वास्थ्य हेल्पलाइन'
+                  : 'Government Health Advisory & Medical Helpline'}
               </div>
             </div>
-            <span className="bg-white text-[#1A5FB4] px-2.5 py-0.5 rounded-md font-mono text-sm font-bold">
+            <span className="font-mono text-sm font-semibold text-[var(--brand-primary)] tabular-nums">
               104
             </span>
           </a>
 
-          {/* Direct Call Nearest PHC Sitapur */}
           <a
             href="tel:+915862248100"
-            className="w-full bg-[#26A269] hover:bg-emerald-700 text-white p-3 rounded-xl flex items-center justify-between font-bold text-xs shadow-xs transition-all"
+            className="w-full p-3.5 rounded-lg bg-white border border-[var(--border-default)] hover:border-[var(--brand-primary)] transition-colors flex items-center justify-between gap-3"
           >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                <Navigation className="w-4 h-4" />
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                {t('callNearestPHC')}
               </div>
-              <div className="text-left">
-                <div className="font-bold">{t('callNearestPHC')}</div>
-                <div className="text-[11px] text-emerald-100">
-                  Sitapur PHC Emergency (2.1 km)
-                </div>
+              <div className="text-xs text-[var(--text-secondary)]">
+                Sitapur Primary Health Centre (2.1 km)
               </div>
             </div>
-            <span className="text-xs font-mono bg-emerald-800 px-2 py-0.5 rounded-md">
+            <span className="font-mono text-xs font-semibold text-[var(--text-primary)] tabular-nums">
               05862-248100
             </span>
           </a>
 
-          {/* Live GPS Broadcast Simulation */}
-          <div className="bg-[#F0F5F9] border border-gray-200 rounded-xl p-3.5 text-center mt-2">
+          {/* Location Broadcast Option */}
+          <div className="pt-2">
             {sosSent ? (
-              <div className="text-[#26A269] font-bold flex items-center justify-center gap-2 text-xs">
-                <CheckCircle2 className="w-4 h-4 text-[#26A269]" />
-                {language === 'hi'
-                  ? 'आपातकालीन संदेश व GPS (27.5684° N, 80.6829° E) 108 कंट्रोल रूम को भेजा गया!'
-                  : 'Emergency Alert & GPS (27.5684° N, 80.6829° E) sent to 108 Control Room!'}
+              <div
+                role="status"
+                className="p-3.5 rounded-lg bg-[var(--status-success-bg)] border border-[var(--status-success-border)] text-[var(--status-success)] text-xs font-medium flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>
+                  {language === 'hi'
+                    ? 'आपका संदर्भ स्थान (27.5684° N, 80.6829° E) 108 सहायता हेतु साझा कर दिया गया है।'
+                    : 'Reference coordinates (27.5684° N, 80.6829° E) logged for 108 dispatch coordination.'}
+                </span>
               </div>
             ) : (
               <button
-                onClick={handleBroadcastSOS}
-                className="w-full bg-[#1A1A1B] hover:bg-black text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                type="button"
+                onClick={() => setSosSent(true)}
+                className="w-full py-2.5 px-4 rounded-md text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-subtle)] hover:bg-slate-200/80 border border-[var(--border-strong)] inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
-                <Navigation className="w-3.5 h-3.5 text-amber-400" />
-                {language === 'hi'
-                  ? '📍 मेरा जीपीएस स्थान 108 एम्बुलेंस को भेजें'
-                  : '📍 Broadcast My GPS Coordinates to 108'}
+                <Navigation className="w-3.5 h-3.5 text-[var(--brand-primary)]" aria-hidden="true" />
+                <span>
+                  {language === 'hi'
+                    ? 'आपातकालीन कक्ष को जीपीएस स्थान साझा करें'
+                    : 'Share GPS Coordinates with 108 Dispatch'}
+                </span>
               </button>
             )}
           </div>
-
         </div>
 
-        {/* Modal Footer */}
-        <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-end">
+        <div className="px-6 py-3.5 bg-[var(--bg-canvas)] border-t border-[var(--border-default)] flex justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs"
+            className="px-4 py-2 rounded-md text-xs font-semibold text-[var(--text-secondary)] bg-white border border-[var(--border-strong)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
           >
             {t('close')}
           </button>
         </div>
-
       </div>
     </div>
   );

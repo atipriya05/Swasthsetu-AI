@@ -1,26 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import {
-  Bot,
-  User,
   Send,
   Mic,
   MicOff,
   Volume2,
   VolumeX,
-  RefreshCw,
   X,
-  FileText,
-  Sparkles,
   AlertTriangle,
-  HeartPulse,
   Globe,
-  Trash2,
-  Activity,
+  RotateCcw,
   PhoneCall,
-  CheckCircle2,
-  HelpCircle,
-  Stethoscope
+  Check,
+  Stethoscope,
+  User,
+  Info
 } from 'lucide-react';
 import { SpeechService, SpeechRecognitionService } from '../utils/speech';
 
@@ -31,7 +25,6 @@ export interface ChatMessage {
   timestamp: string;
   isGeminiPowered?: boolean;
   language?: string;
-  isAudioPlaying?: boolean;
 }
 
 interface AIHealthAssistantProps {
@@ -40,10 +33,10 @@ interface AIHealthAssistantProps {
   onOpenReportGeneratorWithText?: (text: string) => void;
 }
 
+// Supported assistant languages
 export const SUPPORTED_LANGUAGES = [
-  { code: 'hi', label: 'हिंदी', name: 'Hindi' },
   { code: 'en', label: 'English', name: 'English' },
-  { code: 'mr', label: 'मराठी', name: 'Marathi' },
+  { code: 'hi', label: 'हिंदी', name: 'Hindi' },
   { code: 'bn', label: 'বাংলা', name: 'Bengali' },
   { code: 'ta', label: 'தமிழ்', name: 'Tamil' },
   { code: 'te', label: 'తెలుగు', name: 'Telugu' },
@@ -60,39 +53,34 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
   onClose,
   onOpenReportGeneratorWithText
 }) => {
-  const { language: globalAppLang } = useLanguage();
+  const { language: globalAppLang, t } = useLanguage();
 
-  // Active chat language selection
-  const [chatLanguage, setChatLanguage] = useState<string>(globalAppLang || 'hi');
+  const [chatLanguage, setChatLanguage] = useState<string>(globalAppLang || 'en');
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [autoSpeakEnabled, setAutoSpeakEnabled] = useState(true);
+  const [autoSpeakEnabled, setAutoSpeakEnabled] = useState(false);
   const [activePlayingId, setActivePlayingId] = useState<string | null>(null);
-  const [isGeminiReady, setIsGeminiReady] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initial welcome message localized to the chat language
   const getInitialWelcomeMessage = (lang: string): string => {
     switch (lang) {
       case 'hi':
-        return 'नमस्ते! मैं स्वास्थ्य सेतु AI चिकित्सक सहायक हूँ।\n• अपने लक्षण, बुखार, दर्द या किसी भी बीमारी के बारे में बताएं या माइक दबाकर बोलें।\n• मैं तुरंत लक्षणों का क्लीनिकल विश्लेषण कर सही उपचार और सलाह दूंगा।';
-      case 'mr':
-        return 'नमस्कार! मी स्वास्थ्य सेतू AI आरोग्य सहाय्यक आहे.\n• आपली लक्षणे, दुखणे किंवा आरोग्याविषयी प्रश्न सांगा किंवा आवाजात बोला.\n• मी आपल्या लक्षणांचे विश्लेषण करून योग्य वैद्यकीय सल्ला देईन.';
+        return 'नमस्ते। मैं स्वास्थ्य सेतु AI लक्षण जांच सहायक हूँ।\nकृपया अपने लक्षण, अवधि या स्वास्थ्य संबंधी प्रश्न लिखें अथवा माइक्रोफ़ोन का उपयोग कर बोलें। मैं प्रारंभिक नैदानिक मार्गदर्शन और अगले आवश्यक चरणों की जानकारी प्रदान करूंगा।';
       case 'bn':
-        return 'নমস্কার! আমি স্বাস্থ্য সেতু এআই স্বাস্থ্য সহকারী।\n• আপনার লক্ষণ, জ্বর বা স্বাস্থ্য সমস্যা সম্পর্কে লিখুন বা বলুন।\n• আমি সঠিক বিশ্লেষণ ও প্রাথমিক পরামর্শ প্রদান করব।';
+        return 'নমস্কার। আমি স্বাস্থ্য সেতু AI স্বাস্থ্য সহকারী।\nঅনুগ্রহ করে আপনার লক্ষণ বা স্বাস্থ্য সংক্রান্ত প্রশ্ন লিখুন বা বলুন। আমি প্রাথমিক চিকিৎসা পরামর্শ প্রদান করব।';
       case 'ta':
-        return 'வணக்கம்! நான் ஸ்வஸ்த் சேது AI சுகாதார உதவியாளர்.\n• உங்கள் அறிகுறிகள் அல்லது உடல்நலப் பிரச்சனைகளை தெரிவிக்கவும்.\n• துல்லியமான மருத்துவ பகுப்பாய்வு மற்றும் ஆலோசனையை வழங்குவேன்.';
+        return 'வணக்கம். நான் ஸ்வஸ்த் சேது AI சுகாதார உதவியாளர்.\nஉங்கள் அறிகுறிகள் அல்லது உடல்நலக் கேள்விகளைப் பதிவிடவும். ஆரம்பக்கட்ட மருத்துவ வழிகாட்டுதலை வழங்குவேன்.';
       case 'te':
-        return 'నమస్కారం! నేను స్వాస్థ్య సేతు AI ఆరోగ్య సహాయకుడిని.\n• మీ లక్షణాలు లేదా అనారోగ్య సమస్యలను వివరించండి.\n• సరైన విశ్లేషణ మరియు వైద్య మార్గదర్శకత్వాన్ని అందిస్తాను.';
+        return 'నమస్కారం. నేను స్వాస్థ్య సేతు AI ఆరోగ్య సహాయకుడిని.\nదయచేసి మీ లక్షణాలు లేదా ఆరోగ్య ప్రశ్నలను తెలియజేయండి. ప్రాథమిక వైద్య మార్గదర్శకత్వం అందిస్తాను.';
       case 'gu':
-        return 'નમસ્તે! હું સ્વાસ્થ્ય સેતુ AI આરોગ્ય સહાયક છું.\n• તમારા લક્ષણો, તાવ અથવા સ્વાસ્થ્ય સમસ્યા જણાવો.\n• હું સચોટ વિશ્લેષણ અને યોગ્ય સલાહ આપીશ.';
+        return 'નમસ્તે. હું સ્વાસ્થ્ય સેતુ AI આરોગ્ય સહાયક છું.\nકૃપા કરીને તમારા લક્ષણો અથવા સ્વાસ્થ્ય પ્રશ્નો જણાવો. હું પ્રાથમિક તબીબી માર્ગદર્શન આપીશ.';
       case 'en':
       default:
-        return 'Hello! I am your SwasthSetu AI Health Assistant.\n• Type or speak your symptoms (e.g. fever, chest pain, stomach ache, rash).\n• I provide immediate clinical symptom analysis, urgency evaluation, and medical guidance.';
+        return 'Welcome to the SwasthSetu AI Symptom Checker.\nDescribe your symptoms, their duration, or any public healthcare question below. You may also use the microphone for voice input to receive structured preliminary guidance.';
     }
   };
 
@@ -107,9 +95,8 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     }
   ]);
 
-  // Sync initial language if global app language changes
   useEffect(() => {
-    if (globalAppLang && !messages.some(m => m.sender === 'user')) {
+    if (globalAppLang && !messages.some((m) => m.sender === 'user')) {
       setChatLanguage(globalAppLang);
       setMessages([
         {
@@ -124,17 +111,6 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     }
   }, [globalAppLang]);
 
-  // Check Gemini Status
-  useEffect(() => {
-    fetch('/api/gemini/status')
-      .then(res => res.json())
-      .then(data => {
-        setIsGeminiReady(Boolean(data.configured));
-      })
-      .catch(() => setIsGeminiReady(false));
-  }, []);
-
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (isOpen) {
       chatContainerRef.current?.scrollTo({
@@ -144,19 +120,26 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     }
   }, [messages, isLoading, isOpen]);
 
-  // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 150);
+      const timer = setTimeout(() => inputRef.current?.focus(), 120);
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('keydown', handleKeyDown);
+      };
     } else {
       SpeechService.stop();
       SpeechRecognitionService.stopListening();
       setIsListening(false);
       setActivePlayingId(null);
+      setIsLangMenuOpen(false);
     }
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
-  // Stop TTS when unmounted
   useEffect(() => {
     return () => {
       SpeechService.stop();
@@ -164,61 +147,75 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     };
   }, []);
 
-  // Quick Action Symptom Prompts
+  // Neat suggested prompt chips (emoji-free, formal clinical wording)
   const quickPrompts = [
     {
-      label: chatLanguage === 'hi' ? '🤒 बुखार और ठंड' : chatLanguage === 'mr' ? '🤒 ताप आणि थंडी' : '🤒 Fever & Chills',
-      text: chatLanguage === 'hi' ? 'मुझे 3 दिन से 102 डिग्री तेज बुखार और बदन में तेज दर्द है।' : chatLanguage === 'mr' ? 'मला ३ दिवसांपासून तीव्र ताप आणि अंगदुखी आहे.' : 'I have high fever 102F and body aches for 3 days.'
+      label: chatLanguage === 'hi' ? 'बुखार और कंपकंपी' : 'Fever and chills',
+      text:
+        chatLanguage === 'hi'
+          ? 'मुझे 3 दिन से 102°F तेज बुखार और शरीर में दर्द है।'
+          : 'I have had a high fever of 102°F and body aches for 3 days.'
     },
     {
-      label: chatLanguage === 'hi' ? '🤢 पेट दर्द व उल्टी' : chatLanguage === 'mr' ? '🤢 पोटदुखी व उलटी' : '🤢 Stomach Pain & Vomiting',
-      text: chatLanguage === 'hi' ? 'पेट में तेज मरोड़, दस्त और उल्टी की शिकायत है।' : chatLanguage === 'mr' ? 'पोटात तीव्र कळा, जुलाब आणि उलटीचा त्रास होत आहे.' : 'Severe stomach cramps, vomiting and loose motions.'
+      label: chatLanguage === 'hi' ? 'पेट दर्द व उल्टी' : 'Stomach pain & vomiting',
+      text:
+        chatLanguage === 'hi'
+          ? 'पेट में तेज मरोड़, दस्त और उल्टी की शिकायत है।'
+          : 'I am experiencing abdominal cramps, vomiting, and loose stools.'
     },
     {
-      label: chatLanguage === 'hi' ? '🐕 कुत्ते/जानवर का काटना' : chatLanguage === 'mr' ? '🐕 कुत्रा चावणे' : '🐕 Dog / Animal Bite',
-      text: chatLanguage === 'hi' ? 'गली के कुत्ते ने पैर पर काट लिया है, क्या करें?' : chatLanguage === 'mr' ? 'कुत्रा पायाला चावला आहे, प्राथमिक उपचार काय करावे?' : 'Stray dog bite on leg, what is the immediate treatment?'
+      label: chatLanguage === 'hi' ? 'पशु काटने पर उपचार' : 'Animal bite first aid',
+      text:
+        chatLanguage === 'hi'
+          ? 'कुत्ते ने पैर पर काट लिया है, तत्काल प्राथमिक उपचार क्या करें?'
+          : 'A stray dog bit my leg. What immediate first aid and vaccine steps should I take?'
     },
     {
-      label: chatLanguage === 'hi' ? '🫀 सीने में दर्द व सांस' : chatLanguage === 'mr' ? '🫀 छातीत दुखणे' : '🫀 Chest Pain / Breathing',
-      text: chatLanguage === 'hi' ? 'सीने में भारीपन, पसीना और सांस लेने में तकलीफ हो रही है।' : chatLanguage === 'mr' ? 'छातीत जडपणा आणि श्वास घेण्यास त्रास होत आहे.' : 'Heavy chest tightness, sweating, and difficulty breathing.'
+      label: chatLanguage === 'hi' ? 'सीने में दर्द व सांस' : 'Chest pain or breathlessness',
+      text:
+        chatLanguage === 'hi'
+          ? 'सीने में भारीपन, पसीना और सांस लेने में कठिनाई हो रही है।'
+          : 'I have chest tightness, sweating, and shortness of breath.'
     },
     {
-      label: chatLanguage === 'hi' ? '🤰 गर्भावस्था जांच (ANC)' : chatLanguage === 'mr' ? '🤰 गरोदर तपासणी' : '🤰 Pregnancy Care',
-      text: chatLanguage === 'hi' ? 'गर्भवती महिलाओं के लिए सरकारी अस्पताल में क्या सुविधाएं हैं?' : chatLanguage === 'mr' ? 'गरोदर महिलांसाठी शासकीय दवाखान्यात काय सोयी आहेत?' : 'What free maternal care services and vaccines are available at the PHC?'
+      label: chatLanguage === 'hi' ? 'प्रसव पूर्व जांच (ANC)' : 'Antenatal care (ANC)',
+      text:
+        chatLanguage === 'hi'
+          ? 'गर्भवती महिलाओं के लिए सरकारी PHC पर कौन-सी निःशुल्क सुविधाएं उपलब्ध हैं?'
+          : 'What free antenatal care services and vaccines are available at the PHC?'
     },
     {
-      label: chatLanguage === 'hi' ? '🏥 5 लाख आयुष्मान कार्ड' : chatLanguage === 'mr' ? '🏥 आयुष्यमान कार्ड' : '🏥 Ayushman Bharat Card',
-      text: chatLanguage === 'hi' ? 'आयुष्मान भारत कार्ड से 5 लाख का मुफ्त इलाज कैसे मिलता है?' : chatLanguage === 'mr' ? 'आयुष्मान भारत कार्डद्वारे मोफत उपचार कसे मिळतात?' : 'How does Ayushman Bharat PM-JAY provide 5 Lakh free hospital treatment?'
+      label: chatLanguage === 'hi' ? 'आयुष्मान भारत योजना' : 'Ayushman Bharat PM-JAY',
+      text:
+        chatLanguage === 'hi'
+          ? 'आयुष्मान भारत PM-JAY कार्ड से निःशुल्क अस्पताल उपचार कैसे प्राप्त होता है?'
+          : 'How does Ayushman Bharat PM-JAY provide cashless hospital coverage?'
     }
   ];
 
-  // Send Message Handler
   const handleSendMessage = async (textToSend?: string) => {
-    const rawText = (textToSend || inputText).trim();
+    const rawText = (textToSend ?? inputText).trim();
     if (!rawText || isLoading) return;
 
-    // Stop ongoing speech
     SpeechService.stop();
     setActivePlayingId(null);
 
-    const userMessageId = `msg-user-${Date.now()}`;
     const userMsg: ChatMessage = {
-      id: userMessageId,
+      id: `msg-user-${Date.now()}`,
       sender: 'user',
       text: rawText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       language: chatLanguage
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setInputText('');
     setIsLoading(true);
 
     try {
-      // Build conversation history for context
       const historyPayload = messages
-        .filter(m => m.id !== 'msg-welcome' && !m.id.startsWith('msg-welcome-'))
-        .map(m => ({
+        .filter((m) => !m.id.startsWith('msg-welcome'))
+        .map((m) => ({
           sender: m.sender,
           text: m.text
         }));
@@ -238,8 +235,9 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
       }
 
       const data = await res.json();
-      const botReplyText = data.reply || 'Thank you for consulting. Please visit your nearest PHC.';
-      const isPowered = Boolean(data.isGeminiPowered);
+      const botReplyText =
+        data.reply ||
+        'Thank you for sharing your symptoms. Please consult a physician at your nearest Primary Health Centre.';
 
       const botMessageId = `msg-bot-${Date.now()}`;
       const botMsg: ChatMessage = {
@@ -247,37 +245,34 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
         sender: 'assistant',
         text: botReplyText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isGeminiPowered: isPowered,
+        isGeminiPowered: Boolean(data.isGeminiPowered),
         language: data.language || chatLanguage
       };
 
-      setMessages(prev => [...prev, botMsg]);
+      setMessages((prev) => [...prev, botMsg]);
 
-      // Automatically speak the response if enabled
       if (autoSpeakEnabled) {
         playTTS(botMessageId, botReplyText, data.language || chatLanguage);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Chat error:', err);
       const fallbackMsg: ChatMessage = {
         id: `msg-bot-err-${Date.now()}`,
         sender: 'assistant',
-        text: chatLanguage === 'hi'
-          ? '⚠️ यदि आपको गंभीर लक्षण महसूस हो रहे हैं, तो तुरंत 108 पर कॉल करें या नजदीकी प्राथमिक स्वास्थ्य केंद्र (PHC) में डॉक्टर को दिखाएं।'
-          : chatLanguage === 'mr'
-          ? '⚠️ आपणास तीव्र त्रास होत असल्यास ताबडतोब १०८ रुग्णवाहिका बोलवा किंवा जवळच्या शासकीय रुग्णालयात जा.'
-          : '⚠️ If experiencing severe symptoms, please dial 108 immediately or visit your nearest Primary Health Centre (PHC).',
+        text:
+          chatLanguage === 'hi'
+            ? 'कनेक्शन में अस्थायी बाधा है। यदि लक्षण गंभीर हैं, तो कृपया तुरंत 108 पर कॉल करें या निकटतम प्राथमिक स्वास्थ्य केंद्र (PHC) जाएं।'
+            : 'Unable to reach the guidance service at this moment. If you are experiencing severe symptoms, please call 108 immediately or visit your nearest Primary Health Centre.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isGeminiPowered: false,
         language: chatLanguage
       };
-      setMessages(prev => [...prev, fallbackMsg]);
+      setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Text-to-Speech Playback
   const playTTS = (messageId: string, text: string, lang: string) => {
     if (activePlayingId === messageId) {
       SpeechService.stop();
@@ -297,7 +292,6 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     );
   };
 
-  // Voice Input Toggle (Speech-to-Text)
   const handleToggleVoiceInput = () => {
     if (isListening) {
       SpeechRecognitionService.stopListening();
@@ -320,10 +314,7 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
       },
       () => setIsListening(true),
       () => setIsListening(false),
-      (err) => {
-        console.warn('Speech recognition error:', err);
-        setIsListening(false);
-      }
+      () => setIsListening(false)
     );
 
     if (!started) {
@@ -331,7 +322,6 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     }
   };
 
-  // Clear Chat
   const handleClearChat = () => {
     SpeechService.stop();
     setActivePlayingId(null);
@@ -347,22 +337,20 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     ]);
   };
 
-  // Switch Language
   const handleSelectLanguage = (code: string) => {
     setChatLanguage(code);
     setIsLangMenuOpen(false);
     SpeechService.stop();
     setActivePlayingId(null);
 
-    // Add a helpful transition note
-    const langObj = SUPPORTED_LANGUAGES.find(l => l.code === code);
+    const langObj = SUPPORTED_LANGUAGES.find((l) => l.code === code);
     const welcome = getInitialWelcomeMessage(code);
-    setMessages(prev => [
+    setMessages((prev) => [
       ...prev,
       {
         id: `msg-lang-switch-${Date.now()}`,
         sender: 'assistant',
-        text: `${welcome}\n\n🌐 [Language switched to ${langObj?.name || code}]`,
+        text: `${welcome}\n\n[Language updated to ${langObj?.name || code}]`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         language: code
       }
@@ -372,216 +360,232 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-2xl h-[92vh] max-h-[760px] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200">
-        
-        {/* Header */}
-        <div className="bg-linear-to-r from-[#1A5FB4] via-[#1c6dd0] to-[#26A269] px-4 py-3 text-white flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-white/15 border border-white/30 flex items-center justify-center shadow-inner">
-                <Bot className="w-6 h-6 text-white" />
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-[#1A5FB4] rounded-full animate-pulse" />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="assistant-modal-title"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full max-w-2xl h-[92vh] max-h-[760px] rounded-xl shadow-[var(--shadow-elevated)] flex flex-col overflow-hidden border border-[var(--border-default)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Clinical Modal Header */}
+        <div className="bg-white px-5 py-4 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-9 h-9 rounded-lg bg-[var(--brand-primary)] text-white flex items-center justify-center shrink-0"
+              aria-hidden="true"
+            >
+              <Stethoscope className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base leading-tight">
-                  {chatLanguage === 'hi' ? 'स्वास्थ्य सेतु AI चिकित्सक' : chatLanguage === 'mr' ? 'स्वास्थ्य सेतू AI सहाय्यक' : 'SwasthSetu AI Health Assistant'}
-                </h3>
-                {isGeminiReady ? (
-                  <span className="bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-white/20">
-                    <Sparkles className="w-2.5 h-2.5 text-amber-300" />
-                    Gemini 2.5
-                  </span>
-                ) : (
-                  <span className="bg-emerald-900/40 text-emerald-100 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-400/30">
-                    <Activity className="w-2.5 h-2.5 text-emerald-300" />
-                    Clinical Engine
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-white/85 flex items-center gap-1.5">
-                <span>🔊 Voice & Multilingual Clinical Symptom Analysis</span>
+            <div className="min-w-0">
+              <h2
+                id="assistant-modal-title"
+                className="text-base font-semibold text-[var(--text-primary)] truncate"
+              >
+                {t('chatbotTitle')}
+              </h2>
+              <p className="text-xs text-[var(--text-muted)] truncate">
+                {t('chatbotSubtitle')}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Language Switcher Dropdown */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Language Dropdown */}
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
-                className="bg-white/15 hover:bg-white/25 active:scale-95 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 border border-white/25 transition-all cursor-pointer"
-                title="Change Chat Language"
+                onClick={() => setIsLangMenuOpen((prev) => !prev)}
+                aria-expanded={isLangMenuOpen}
+                aria-haspopup="listbox"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-primary)] bg-[var(--bg-subtle)] hover:bg-slate-200/70 border border-[var(--border-default)] transition-colors cursor-pointer"
+                title="Change conversation language"
               >
-                <Globe className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">
-                  {SUPPORTED_LANGUAGES.find(l => l.code === chatLanguage)?.label || 'Language'}
+                <Globe className="w-3.5 h-3.5 text-[var(--text-secondary)]" aria-hidden="true" />
+                <span>
+                  {SUPPORTED_LANGUAGES.find((l) => l.code === chatLanguage)?.label || 'English'}
                 </span>
-                <span className="sm:hidden uppercase">{chatLanguage}</span>
               </button>
 
               {isLangMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-50 text-gray-800 text-xs max-h-64 overflow-y-auto">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                <div
+                  role="listbox"
+                  aria-label="Conversation language"
+                  className="absolute right-0 mt-1.5 w-48 bg-white rounded-lg shadow-lg border border-[var(--border-default)] py-1 z-50 max-h-64 overflow-y-auto"
+                >
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-muted)] border-b border-[var(--border-default)]">
                     Select Language / भाषा चुनें
                   </div>
-                  {SUPPORTED_LANGUAGES.map(lang => (
+                  {SUPPORTED_LANGUAGES.map((lang) => (
                     <button
                       key={lang.code}
+                      type="button"
+                      role="option"
+                      aria-selected={chatLanguage === lang.code}
                       onClick={() => handleSelectLanguage(lang.code)}
-                      className={`w-full px-3 py-2 text-left flex items-center justify-between hover:bg-blue-50 transition-colors cursor-pointer ${
-                        chatLanguage === lang.code ? 'font-bold text-[#1A5FB4] bg-blue-50/70' : ''
+                      className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer ${
+                        chatLanguage === lang.code
+                          ? 'font-semibold text-[var(--brand-primary)] bg-[var(--brand-primary-tint)]'
+                          : 'text-[var(--text-primary)]'
                       }`}
                     >
-                      <span className="text-xs font-medium">{lang.label} ({lang.name})</span>
-                      {chatLanguage === lang.code && <CheckCircle2 className="w-3.5 h-3.5 text-[#1A5FB4]" />}
+                      <span>
+                        {lang.label} ({lang.name})
+                      </span>
+                      {chatLanguage === lang.code && (
+                        <Check className="w-3.5 h-3.5 text-[var(--brand-primary)]" aria-hidden="true" />
+                      )}
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Auto-TTS Toggle */}
+            {/* Auto-Voice Readout Toggle */}
             <button
               type="button"
               onClick={() => {
-                setAutoSpeakEnabled(!autoSpeakEnabled);
-                if (autoSpeakEnabled) SpeechService.stop();
+                setAutoSpeakEnabled((prev) => {
+                  if (prev) SpeechService.stop();
+                  return !prev;
+                });
               }}
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+              aria-pressed={autoSpeakEnabled}
+              aria-label={autoSpeakEnabled ? 'Disable automatic voice readout' : 'Enable automatic voice readout'}
+              title={autoSpeakEnabled ? 'Auto-readout enabled' : 'Auto-readout muted'}
+              className={`p-2 rounded-md border transition-colors cursor-pointer ${
                 autoSpeakEnabled
-                  ? 'bg-amber-400 text-gray-900 border-amber-300 font-bold shadow-xs'
-                  : 'bg-white/15 text-white border-white/25 opacity-70 hover:opacity-100'
+                  ? 'bg-[var(--brand-primary-tint)] text-[var(--brand-primary)] border-[var(--brand-primary-border)]'
+                  : 'bg-white text-[var(--text-muted)] border-[var(--border-default)] hover:text-[var(--text-primary)]'
               }`}
-              title={autoSpeakEnabled ? 'Auto-Voice: ON' : 'Auto-Voice: OFF'}
             >
-              {autoSpeakEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              {autoSpeakEnabled ? (
+                <Volume2 className="w-4 h-4" aria-hidden="true" />
+              ) : (
+                <VolumeX className="w-4 h-4" aria-hidden="true" />
+              )}
             </button>
 
-            {/* Clear Chat */}
+            {/* Reset Chat */}
             <button
               type="button"
               onClick={handleClearChat}
-              className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white border border-white/25 transition-all cursor-pointer"
-              title="Clear conversation"
+              className="p-2 rounded-md bg-white text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors cursor-pointer"
+              aria-label={t('clearChat')}
+              title={t('clearChat')}
             >
-              <Trash2 className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4" aria-hidden="true" />
             </button>
 
-            {/* Close Button */}
+            {/* Close */}
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-white/15 hover:bg-red-500 hover:text-white text-white border border-white/25 transition-all cursor-pointer ml-1"
+              className="p-2 rounded-md bg-white text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
+              aria-label={t('close')}
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
 
-        {/* Emergency Alert Banner */}
-        <div className="bg-red-50 border-b border-red-200 px-3.5 py-1.5 flex items-center justify-between text-xs text-red-800">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
-            <span className="text-[11px] font-medium leading-tight">
-              {chatLanguage === 'hi'
-                ? 'आपातकाल में तुरंत 108 एम्बुलेंस डायल करें।'
-                : chatLanguage === 'mr'
-                ? 'तातडीच्या प्रसंगी त्वरित १०८ रुग्णवाहिकेला कॉल करा.'
-                : 'For acute emergencies, dial 108 for immediate free ambulance.'}
-            </span>
+        {/* Visible Medical Disclaimer & Emergency Notice Bar */}
+        <div className="bg-[var(--bg-canvas)] border-b border-[var(--border-default)] px-5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-start gap-2 text-[var(--text-secondary)]">
+            <Info className="w-4 h-4 text-[var(--brand-primary)] shrink-0 mt-0.5" aria-hidden="true" />
+            <span>{t('medicalDisclaimer')}</span>
           </div>
           <a
             href="tel:108"
-            className="font-bold text-red-700 bg-red-100 hover:bg-red-200 px-2 py-0.5 rounded text-[11px] flex items-center gap-1 shrink-0 transition-colors"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[var(--status-danger-bg)] text-[var(--status-danger)] border border-[var(--status-danger-border)] font-semibold whitespace-nowrap shrink-0 self-start sm:self-center"
           >
-            <PhoneCall className="w-3 h-3" />
-            108
+            <PhoneCall className="w-3 h-3" aria-hidden="true" />
+            <span>{chatLanguage === 'hi' ? 'आपातकाल: 108' : 'Emergency: 108'}</span>
           </a>
         </div>
 
         {/* Messages Stream */}
         <div
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3.5 bg-[#F8FAFC]"
+          role="log"
+          aria-live="polite"
+          aria-label="Symptom checker conversation"
+          className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-[var(--bg-canvas)]"
         >
-          {messages.map(msg => {
+          {messages.map((msg) => {
             const isUser = msg.sender === 'user';
             const isPlaying = activePlayingId === msg.id;
 
             return (
               <div
                 key={msg.id}
-                className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+                className={`flex items-start gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
               >
                 {!isUser && (
-                  <div className="w-8 h-8 rounded-full bg-[#1A5FB4] text-white flex items-center justify-center shrink-0 shadow-xs mt-1">
-                    <Bot className="w-4 h-4" />
+                  <div
+                    className="w-7 h-7 rounded-md bg-[var(--brand-primary-tint)] text-[var(--brand-primary)] border border-[var(--brand-primary-border)] flex items-center justify-center shrink-0 mt-0.5"
+                    aria-hidden="true"
+                  >
+                    <Stethoscope className="w-3.5 h-3.5" />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-[86%] sm:max-w-[78%] rounded-2xl p-3.5 text-xs sm:text-sm shadow-xs ${
+                  className={`max-w-[85%] sm:max-w-[78%] rounded-xl px-4 py-3 text-sm ${
                     isUser
-                      ? 'bg-[#1A5FB4] text-white rounded-tr-xs font-medium'
-                      : 'bg-white text-gray-900 border border-gray-200 rounded-tl-xs'
+                      ? 'bg-[var(--brand-primary)] text-white rounded-tr-xs'
+                      : 'bg-white text-[var(--text-primary)] border border-[var(--border-default)] rounded-tl-xs shadow-[var(--shadow-card)]'
                   }`}
                 >
-                  {/* Message Text with clean line breaks */}
-                  <div className="whitespace-pre-line leading-relaxed">
-                    {msg.text}
+                  <div className="text-[11px] font-semibold mb-1 opacity-80">
+                    {isUser
+                      ? chatLanguage === 'hi'
+                        ? 'आप'
+                        : 'You'
+                      : chatLanguage === 'hi'
+                        ? 'स्वास्थ्य सेतु AI'
+                        : 'SwasthSetu AI'}
                   </div>
 
-                  {/* Message Footer / Controls */}
+                  <div className="whitespace-pre-line leading-relaxed">{msg.text}</div>
+
                   <div
                     className={`mt-2.5 pt-2 border-t flex flex-wrap items-center justify-between gap-2 text-[11px] ${
-                      isUser ? 'border-blue-400/40 text-blue-100' : 'border-gray-100 text-gray-500'
+                      isUser
+                        ? 'border-white/20 text-blue-100'
+                        : 'border-[var(--border-default)] text-[var(--text-muted)]'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span>{msg.timestamp}</span>
-                      {!isUser && msg.isGeminiPowered && (
-                        <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-1.5 py-0.2 rounded flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5 text-amber-600" />
-                          Gemini
-                        </span>
-                      )}
-                    </div>
+                    <span className="tabular-nums">{msg.timestamp}</span>
 
-                    {/* Assistant Actions: Speak Audio & Create Doctor Report */}
                     {!isUser && (
-                      <div className="flex items-center gap-1.5">
-                        {/* Text to Speech Button */}
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => playTTS(msg.id, msg.text, msg.language || chatLanguage)}
-                          className={`p-1 px-2 rounded-md font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-medium transition-colors cursor-pointer ${
                             isPlaying
-                              ? 'bg-[#26A269] text-white animate-pulse'
-                              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                              ? 'bg-[var(--brand-teal-tint)] text-[var(--brand-teal)] border border-[var(--brand-teal-border)]'
+                              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)]'
                           }`}
-                          title="Listen to this message"
                         >
-                          <Volume2 className="w-3 h-3" />
-                          <span>{isPlaying ? 'Speaking...' : 'Listen'}</span>
+                          <Volume2 className="w-3 h-3" aria-hidden="true" />
+                          <span>{isPlaying ? (chatLanguage === 'hi' ? 'रोकें' : 'Stop') : t('voiceOutputPlay')}</span>
                         </button>
 
-                        {/* Convert to Doctor Triage Report */}
-                        {onOpenReportGeneratorWithText && msg.id !== 'msg-welcome' && (
+                        {onOpenReportGeneratorWithText && !msg.id.startsWith('msg-welcome') && (
                           <button
                             type="button"
                             onClick={() => {
                               onClose();
                               onOpenReportGeneratorWithText(msg.text);
                             }}
-                            className="p-1 px-2 rounded-md font-bold text-[11px] bg-blue-50 hover:bg-blue-100 text-[#1A5FB4] flex items-center gap-1 transition-all cursor-pointer"
-                            title="Generate Doctor Clinical Report"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-medium text-[var(--brand-primary)] hover:bg-[var(--brand-primary-tint)] transition-colors cursor-pointer"
                           >
-                            <Stethoscope className="w-3 h-3" />
-                            <span>{chatLanguage === 'hi' ? 'डॉक्टर पर्ची बनाएं' : 'Doctor Report'}</span>
+                            <span>{t('convertReportBtn')}</span>
                           </button>
                         )}
                       </div>
@@ -590,118 +594,135 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
                 </div>
 
                 {isUser && (
-                  <div className="w-8 h-8 rounded-full bg-blue-100 text-[#1A5FB4] border border-blue-200 flex items-center justify-center shrink-0 shadow-xs mt-1">
-                    <User className="w-4 h-4" />
+                  <div
+                    className="w-7 h-7 rounded-md bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-default)] flex items-center justify-center shrink-0 mt-0.5"
+                    aria-hidden="true"
+                  >
+                    <User className="w-3.5 h-3.5" />
                   </div>
                 )}
               </div>
             );
           })}
 
-          {/* Loading Indicator */}
+          {/* Subtle Typing / Loading Indicator */}
           {isLoading && (
-            <div className="flex gap-2.5 items-start">
-              <div className="w-8 h-8 rounded-full bg-[#1A5FB4] text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Bot className="w-4 h-4" />
+            <div className="flex items-start gap-2.5" aria-label="Analyzing symptoms">
+              <div
+                className="w-7 h-7 rounded-md bg-[var(--brand-primary-tint)] text-[var(--brand-primary)] border border-[var(--brand-primary-border)] flex items-center justify-center shrink-0"
+                aria-hidden="true"
+              >
+                <Stethoscope className="w-3.5 h-3.5" />
               </div>
-              <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-xs p-3.5 shadow-xs text-xs text-gray-600 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin text-[#1A5FB4]" />
-                <span className="font-medium">
+              <div className="bg-white border border-[var(--border-default)] rounded-xl rounded-tl-xs px-4 py-3 text-xs text-[var(--text-secondary)] flex items-center gap-2.5 shadow-[var(--shadow-card)]">
+                <span className="inline-flex items-center gap-1" aria-hidden="true">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] typing-dot" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] typing-dot" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] typing-dot" />
+                </span>
+                <span>
                   {chatLanguage === 'hi'
-                    ? 'AI लक्षणों का क्लीनिकल विश्लेषण कर रहा है...'
-                    : chatLanguage === 'mr'
-                    ? 'AI लक्षणांचे विश्लेषण करत आहे...'
-                    : 'AI is analyzing symptoms & triage guidelines...'}
+                    ? 'लक्षणों का विश्लेषण किया जा रहा है...'
+                    : 'Evaluating symptoms and guidance...'}
                 </span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Quick Suggestion Chips */}
-        <div className="px-3 py-2 bg-white border-t border-gray-200 overflow-x-auto whitespace-nowrap scrollbar-none flex gap-1.5">
+        {/* Suggested Prompts Chips */}
+        <div className="px-4 py-2.5 bg-white border-t border-[var(--border-default)] flex items-center gap-1.5 overflow-x-auto">
           {quickPrompts.map((p, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => handleSendMessage(p.text)}
               disabled={isLoading}
-              className="bg-[#F0F5F9] hover:bg-[#DEE9F7] hover:border-[#1A5FB4] text-gray-800 border border-gray-200 text-xs font-bold px-3 py-1.5 rounded-full transition-all shrink-0 cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-md text-xs font-medium text-[var(--text-secondary)] bg-[var(--bg-canvas)] hover:bg-[var(--brand-primary-tint)] hover:text-[var(--brand-primary)] border border-[var(--border-default)] hover:border-[var(--brand-primary-border)] transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
               {p.label}
             </button>
           ))}
         </div>
 
-        {/* Live Listening Banner */}
+        {/* Active Voice Recording Notice */}
         {isListening && (
-          <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-between text-xs font-bold animate-pulse">
+          <div className="bg-[var(--status-danger-bg)] border-t border-[var(--status-danger-border)] text-[var(--status-danger)] px-4 py-2 flex items-center justify-between text-xs font-medium">
             <div className="flex items-center gap-2">
-              <Mic className="w-4 h-4 animate-ping" />
+              <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
               <span>
                 {chatLanguage === 'hi'
-                  ? '🔴 आवाज़ रिकॉर्ड हो रही है... बोलें (माइक बंद करने हेतु दोबारा दबाएं)'
-                  : '🔴 Listening... Speak clearly in your selected language.'}
+                  ? 'वॉयस रिकॉर्डिंग सक्रिय है। कृपया स्पष्ट बोलें।'
+                  : 'Voice input active. Speak clearly in your selected language.'}
               </span>
             </div>
             <button
+              type="button"
               onClick={() => {
                 SpeechRecognitionService.stopListening();
                 setIsListening(false);
               }}
-              className="bg-white text-red-600 px-2 py-0.5 rounded font-bold text-[11px]"
+              className="px-2.5 py-1 rounded bg-white border border-[var(--status-danger-border)] text-[var(--status-danger)] font-semibold cursor-pointer"
             >
-              Stop
+              {t('voiceInputStop')}
             </button>
           </div>
         )}
 
-        {/* Input Bar */}
-        <div className="p-3 sm:p-4 bg-white border-t border-gray-200 flex items-center gap-2">
-          {/* Voice Input Microphone Button */}
+        {/* Input Form Bar */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage();
+          }}
+          className="p-3 sm:p-4 bg-white border-t border-[var(--border-default)] flex items-center gap-2"
+        >
           <button
             type="button"
             onClick={handleToggleVoiceInput}
-            className={`p-3 rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-xs ${
+            aria-label={isListening ? t('voiceInputStop') : t('voiceInputStart')}
+            title={isListening ? t('voiceInputStop') : t('voiceInputStart')}
+            className={`p-2.5 rounded-md border transition-colors cursor-pointer shrink-0 ${
               isListening
-                ? 'bg-[#E01B24] text-white ring-4 ring-red-200 animate-pulse'
-                : 'bg-[#26A269] hover:bg-emerald-700 text-white'
+                ? 'bg-[var(--status-danger)] text-white border-[var(--status-danger)]'
+                : 'bg-[var(--bg-subtle)] text-[var(--text-primary)] border-[var(--border-strong)] hover:bg-slate-200/70'
             }`}
-            title="Speak symptoms (Voice to Text)"
           >
-            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            {isListening ? (
+              <MicOff className="w-4 h-4" aria-hidden="true" />
+            ) : (
+              <Mic className="w-4 h-4" aria-hidden="true" />
+            )}
           </button>
 
-          {/* Text Input */}
+          <label htmlFor="symptom-chat-input" className="sr-only">
+            {t('chatPlaceholder')}
+          </label>
           <input
+            id="symptom-chat-input"
             ref={inputRef}
             type="text"
             value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+            onChange={(e) => setInputText(e.target.value)}
             placeholder={
               chatLanguage === 'hi'
-                ? 'अपने लक्षण लिखें या माइक दबाकर बोलें...'
-                : chatLanguage === 'mr'
-                ? 'आपली लक्षणे लिहा किंवा माईक दाबून बोला...'
-                : 'Describe your symptoms or press mic to speak...'
+                ? 'अपने लक्षण लिखें या माइक से बोलें...'
+                : 'Describe your symptoms or ask a health question...'
             }
             disabled={isLoading}
-            className="flex-1 px-4 py-3 bg-[#F0F5F9] border border-gray-300 rounded-xl text-xs sm:text-sm text-gray-900 font-medium focus:bg-white focus:ring-2 focus:ring-[#1A5FB4] outline-hidden transition-all disabled:opacity-60"
+            className="flex-1 px-3.5 py-2.5 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:bg-white focus:border-[var(--brand-primary)] transition-colors disabled:opacity-60"
           />
 
-          {/* Send Button */}
           <button
-            type="button"
-            onClick={() => handleSendMessage()}
+            type="submit"
             disabled={!inputText.trim() || isLoading}
-            className="bg-[#1A5FB4] hover:bg-blue-700 disabled:opacity-40 text-white p-3 rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
-            title="Send Message"
+            aria-label="Send message"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4" aria-hidden="true" />
+            <span className="hidden sm:inline">{chatLanguage === 'hi' ? 'भेजें' : 'Send'}</span>
           </button>
-        </div>
-
+        </form>
       </div>
     </div>
   );
