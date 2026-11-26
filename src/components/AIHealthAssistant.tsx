@@ -71,7 +71,7 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
   const getInitialWelcomeMessage = (lang: string): string => {
     switch (lang) {
       case 'hi':
-        return 'नमस्ते। मैं स्वास्थ्य सेतु AI लक्षण जांच सहायक हूँ।\nकृपया अपने लक्षण, अवधि या स्वास्थ्य संबंधी प्रश्न लिखें अथवा माइक्रोफ़ोन का उपयोग कर बोलें। मैं प्रारंभिक नैदानिक मार्गदर्शन और अगले आवश्यक चरणों की जानकारी प्रदान करूंगा।';
+        return 'नमस्ते! स्वास्थ्यसेतु AI में आपका स्वागत है।\nकृपया अपने लक्षण, अवधि या स्वास्थ्य संबंधी प्रश्न लिखें अथवा माइक्रोफ़ोन का उपयोग कर बोलें। मैं प्रारंभिक नैदानिक मार्गदर्शन और आवश्यक स्वास्थ्य जानकारी प्रदान करूंगा।';
       case 'bn':
         return 'নমস্কার। আমি স্বাস্থ্য সেতু AI স্বাস্থ্য সহকারী।\nঅনুগ্রহ করে আপনার লক্ষণ বা স্বাস্থ্য সংক্রান্ত প্রশ্ন লিখুন বা বলুন। আমি প্রাথমিক চিকিৎসা পরামর্শ প্রদান করব।';
       case 'ta':
@@ -82,7 +82,7 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
         return 'નમસ્તે. હું સ્વાસ્થ્ય સેતુ AI આરોગ્ય સહાયક છું.\nકૃપા કરીને તમારા લક્ષણો અથવા સ્વાસ્થ્ય પ્રશ્નો જણાવો. હું પ્રાથમિક તબીબી માર્ગદર્શન આપીશ.';
       case 'en':
       default:
-        return 'Welcome to the SwasthSetu AI Symptom Checker.\nDescribe your symptoms, their duration, or any public healthcare question below. You may also use the microphone for voice input to receive structured preliminary guidance.';
+        return 'Hi, welcome to SwasthSetu AI!\nDescribe your symptoms, their duration, or any public healthcare question below. You may also use the microphone for voice input to receive structured preliminary guidance.';
     }
   };
 

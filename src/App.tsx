@@ -14,6 +14,7 @@ import { AIHealthAssistant } from './components/AIHealthAssistant';
 import { AppointmentModal } from './components/AppointmentModal';
 import { EmergencyModal } from './components/EmergencyModal';
 import { DigitalHealthRecord } from './components/DigitalHealthRecord';
+import { WelcomeToast } from './components/WelcomeToast';
 import {
   Appointment,
   Prescription,
@@ -260,6 +261,9 @@ const MainAppContent: React.FC = () => {
 
       {/* Emergency Helplines Dialog */}
       <EmergencyModal isOpen={isEmergencyOpen} onClose={() => setIsEmergencyOpen(false)} />
+
+      {/* Welcome Toast Notification upon Sign In */}
+      <WelcomeToast />
 
       {/* Formal Healthcare Portal Footer */}
       <Footer

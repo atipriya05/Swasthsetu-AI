@@ -46,6 +46,10 @@ export const translations = {
     quickDemoCredentials: 'Demonstration Access',
     loginAsPatientDemo: 'Continue as Demo Patient',
     loginAsDoctorDemo: 'Continue as Demo Medical Officer',
+    welcomeGreetingTitle: 'Hi, welcome to SwasthSetu!',
+    welcomeGreetingSubtitlePatient: 'Your digital health portal and OPD booking for Jabalpur are ready.',
+    welcomeGreetingSubtitleDoctor: 'Jabalpur Public Health and Clinical Triage Portal is ready.',
+    hearGreeting: 'Hear Greeting',
 
     // Patient Dashboard / Hero
     heroHeadline: 'Reliable Health Guidance and Primary Care Access',
@@ -299,6 +303,10 @@ export const translations = {
     quickDemoCredentials: 'डेमो प्रवेश',
     loginAsPatientDemo: 'डेमो मरीज़ के रूप में जारी रखें',
     loginAsDoctorDemo: 'डेमो चिकित्सा अधिकारी के रूप में जारी रखें',
+    welcomeGreetingTitle: 'नमस्ते, स्वास्थ्यसेतु में आपका स्वागत है!',
+    welcomeGreetingSubtitlePatient: 'आपका डिजिटल स्वास्थ्य पोर्टल और जबलपुर ओपीडी बुकिंग तैयार है।',
+    welcomeGreetingSubtitleDoctor: 'जबलपुर सार्वजनिक स्वास्थ्य एवं क्लिनिकल ट्राइएज पोर्टल तैयार है।',
+    hearGreeting: 'स्वागत संदेश सुनें',
 
     // Patient Dashboard / Hero
     heroHeadline: 'विश्वसनीय स्वास्थ्य मार्गदर्शन एवं प्राथमिक चिकित्सा सुविधा',

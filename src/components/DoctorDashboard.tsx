@@ -3,7 +3,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
 import { Appointment, AITriageReport, Prescription, PrescribedMedicine } from '../types';
-import { Stethoscope, Users, CheckCircle2, Plus, Trash2, FileText } from 'lucide-react';
+import { SpeechService } from '../utils/speech';
+import { Stethoscope, Users, CheckCircle2, Plus, Trash2, FileText, Volume2 } from 'lucide-react';
 
 interface DoctorDashboardProps {
   appointments: Appointment[];
@@ -198,6 +199,43 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Friendly Doctor Welcome Banner with Voice Greeting */}
+      <div className="bg-gradient-to-r from-slate-50/90 via-teal-50/70 to-blue-50/80 border border-[var(--border-default)] rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-white shadow-xs border border-teal-200 flex items-center justify-center text-xl shrink-0 select-none">
+            🩺
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+              {language === 'hi'
+                ? `नमस्ते ${doctor?.name || 'डॉ. राजेश पटेल'}, स्वास्थ्यसेतु में आपका स्वागत है!`
+                : `Welcome ${doctor?.name || 'Dr. Rajesh Patel'} to SwasthSetu Clinical Portal!`}
+            </h2>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+              {language === 'hi'
+                ? 'पनागर प्राथमिक स्वास्थ्य केंद्र (PHC), जबलपुर — डिजिटल ओपीडी एवं ट्राइएज कतार'
+                : 'Panagar Primary Health Centre (PHC), Jabalpur — Digital OPD Queue & Triage'}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            const greeting =
+              language === 'hi'
+                ? `नमस्ते, स्वास्थ्यसेतु में आपका स्वागत है!`
+                : `Welcome to SwasthSetu Clinical Portal!`;
+            SpeechService.speak(greeting, language);
+          }}
+          className="inline-flex items-center gap-1.5 self-start sm:self-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-[var(--brand-primary)] border border-slate-200 hover:bg-[var(--brand-primary)] hover:text-white hover:border-transparent transition-colors shadow-2xs cursor-pointer shrink-0"
+          title={t('hearGreeting')}
+        >
+          <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>{t('hearGreeting')}</span>
+        </button>
       </div>
 
       {/* Header & Summary Metrics */}

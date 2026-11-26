@@ -8,6 +8,7 @@ import {
   Appointment,
   AITriageReport
 } from '../types';
+import { SpeechService } from '../utils/speech';
 import {
   MapPin,
   Phone,
@@ -19,7 +20,8 @@ import {
   MessageSquareText,
   ExternalLink,
   Info,
-  ClipboardList
+  ClipboardList,
+  Volume2
 } from 'lucide-react';
 
 interface PatientDashboardProps {
@@ -119,6 +121,43 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Friendly Portal Welcome Banner with Voice Greeting */}
+      <div className="bg-gradient-to-r from-teal-50/80 via-sky-50/70 to-emerald-50/80 border border-teal-100 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-white shadow-xs border border-teal-200 flex items-center justify-center text-xl shrink-0 select-none">
+            👋
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+              {language === 'hi'
+                ? `नमस्ते ${patient?.nameHi || patient?.name || 'रामेश्वर लाल पटेल'}, स्वास्थ्यसेतु में आपका स्वागत है!`
+                : `Hi ${patient?.name || 'Rameshwar Lal Patel'}, welcome to SwasthSetu!`}
+            </h2>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+              {language === 'hi'
+                ? 'आपका आभा (ABHA) स्वास्थ्य रिकॉर्ड, जबलपुर ओपीडी टोकन और एआई लक्षण जांच तैयार है।'
+                : 'Your ABHA health record, Jabalpur OPD token booking, and AI symptom checker are ready.'}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            const greeting =
+              language === 'hi'
+                ? `नमस्ते, स्वास्थ्यसेतु में आपका स्वागत है!`
+                : `Hi, welcome to SwasthSetu!`;
+            SpeechService.speak(greeting, language);
+          }}
+          className="inline-flex items-center gap-1.5 self-start sm:self-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-[var(--brand-primary)] border border-teal-200 hover:bg-[var(--brand-primary)] hover:text-white hover:border-transparent transition-colors shadow-2xs cursor-pointer shrink-0"
+          title={t('hearGreeting')}
+        >
+          <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>{t('hearGreeting')}</span>
+        </button>
       </div>
 
       {/* Formal Hero Section — Clear H1, One-Line Value Prop, Single Primary CTA */}
