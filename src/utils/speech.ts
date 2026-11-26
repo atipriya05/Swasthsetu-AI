@@ -215,13 +215,8 @@ export class SpeechRecognitionService {
     }
 
     SpeechRecognitionService.stopListening();
-
-    // Verify microphone permission first
-    const perm = await SpeechRecognitionService.requestMicPermission();
-    if (!perm.granted && perm.error) {
-      if (onError) onError(formatSpeechError(perm.error, language), perm.error);
-      return false;
-    }
+    // Allow brief micro-delay for audio subsystem to fully release before re-initializing
+    await new Promise((r) => setTimeout(r, 60));
 
     try {
       const SpeechRecognitionClass =
@@ -285,16 +280,19 @@ export class SpeechRecognitionService {
 
   public static stopListening(): void {
     if (SpeechRecognitionService.recognition) {
-      try {
-        SpeechRecognitionService.recognition.onresult = null;
-        SpeechRecognitionService.recognition.onerror = null;
-        SpeechRecognitionService.recognition.onend = null;
-        SpeechRecognitionService.recognition.abort();
-      } catch {
-        // Ignore if already stopped
-      }
+      const rec = SpeechRecognitionService.recognition;
       SpeechRecognitionService.recognition = null;
       SpeechRecognitionService.isListening = false;
+      try {
+        rec.onresult = null;
+        rec.onerror = null;
+        rec.onend = null;
+        rec.stop();
+      } catch {
+        try {
+          rec.abort();
+        } catch {}
+      }
     }
   }
 
@@ -446,7 +444,7 @@ export class UnifiedVoiceInput {
   private static activeMode: 'recognition' | 'recorder' | 'none' = 'none';
 
   public static async start(options: UnifiedVoiceOptions): Promise<void> {
-    UnifiedVoiceInput.stop();
+    await UnifiedVoiceInput.stop();
 
     // 1. Try Web Speech API first if supported
     if (SpeechRecognitionService.isSupported()) {
@@ -468,11 +466,13 @@ export class UnifiedVoiceInput {
           }
         },
         async (errorMessage, rawCode) => {
-          // If Web Speech API fails due to network / service-not-allowed / not-supported, fallback to MediaRecorder
+          // If Web Speech API fails due to network / service-not-allowed / not-supported / audio-capture, fallback to MediaRecorder
           if (
             rawCode === 'network' ||
             rawCode === 'not-supported' ||
-            rawCode === 'service-not-allowed'
+            rawCode === 'service-not-allowed' ||
+            rawCode === 'audio-capture' ||
+            rawCode === 'initialization-failed'
           ) {
             speechApiFailed = true;
             SpeechRecognitionService.stopListening();
