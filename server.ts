@@ -505,10 +505,8 @@ function fallbackTriage(input: string, _lang: 'en' | 'hi'): Partial<AITriageRepo
   };
 }
 
-async function startServer() {
+export function createApp() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
-
   app.use(express.json({ limit: '10mb' }));
 
   // --- API Routes ---
@@ -1429,6 +1427,14 @@ CLINICAL GUIDELINES:
     res.json({ success: true, prescription: newRx });
   });
 
+  return app;
+}
+
+export const app = createApp();
+
+async function startServer() {
+  const PORT = Number(process.env.PORT) || 3000;
+
   // Vite middleware setup
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -1452,7 +1458,9 @@ CLINICAL GUIDELINES:
   });
 }
 
-startServer().catch((err) => {
-  console.error('Failed to start SwasthSetu server:', err);
-  process.exit(1);
-});
+if (!process.env.VERCEL) {
+  startServer().catch((err) => {
+    console.error('Failed to start SwasthSetu server:', err);
+    process.exit(1);
+  });
+}
