@@ -18,7 +18,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
   onPrescriptionCreated
 }) => {
   const { language, t } = useLanguage();
-  const { doctor, quickDemoLogin } = useAuth();
+  const { doctor } = useAuth();
   const { isOffline, addToQueue } = useOfflineSync();
 
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(
@@ -175,29 +175,10 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-[var(--text-muted)]">{t('switchRole')}:</span>
-          <div
-            role="group"
-            aria-label={t('switchRole')}
-            className="inline-flex bg-[var(--bg-subtle)] p-0.5 rounded-md border border-[var(--border-default)]"
-          >
-            <button
-              type="button"
-              onClick={() => quickDemoLogin('patient')}
-              aria-pressed="false"
-              className="px-2.5 py-1 rounded text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
-            >
-              {t('navPatientPortal')}
-            </button>
-            <button
-              type="button"
-              onClick={() => quickDemoLogin('doctor')}
-              aria-pressed="true"
-              className="px-2.5 py-1 rounded text-xs font-semibold bg-white text-[var(--brand-primary)] shadow-2xs cursor-pointer"
-            >
-              {t('navDoctorPortal')}
-            </button>
-          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />
+            <span>{language === 'hi' ? 'अधिकृत चिकित्सा अधिकारी' : 'Authorized Medical Officer'}</span>
+          </span>
         </div>
       </div>
 

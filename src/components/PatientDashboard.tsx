@@ -51,15 +51,15 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   onBookAppointment
 }) => {
   const { language, t } = useLanguage();
-  const { patient, quickDemoLogin } = useAuth();
+  const { patient } = useAuth();
 
   const nearestFacility = facilities[0] || null;
   const recentPrescription = prescriptions[0] || null;
   const userAppointments = appointments.filter(
     (a) =>
-      a.patientName === (patient?.name || 'Rameshwar Lal Patel') ||
+      a.patientName === (patient?.name || '') ||
       a.patientId === (patient?.id || 'pat-001') ||
-      a.patientPhone === (patient?.mobile || '9876543210')
+      a.patientPhone === (patient?.mobile || '')
   );
 
   const getFacilityTypeLabel = (type: HealthcareFacility['type']) => {
@@ -84,7 +84,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border-default)] text-sm">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[var(--text-secondary)]">
           <span className="font-semibold text-[var(--text-primary)]">
-            {language === 'hi' ? patient?.nameHi || patient?.name : patient?.name || 'Rameshwar Lal Patel'}
+            {language === 'hi' ? patient?.nameHi || patient?.name || 'नागरिक' : patient?.name || 'Citizen'}
           </span>
           <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
           <span className="font-mono text-xs tabular-nums">
@@ -97,29 +97,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-[var(--text-muted)]">{t('switchRole')}:</span>
-          <div
-            role="group"
-            aria-label={t('switchRole')}
-            className="inline-flex bg-[var(--bg-subtle)] p-0.5 rounded-md border border-[var(--border-default)]"
-          >
-            <button
-              type="button"
-              onClick={() => quickDemoLogin('patient')}
-              aria-pressed="true"
-              className="px-2.5 py-1 rounded text-xs font-semibold bg-white text-[var(--brand-primary)] shadow-2xs cursor-pointer"
-            >
-              {t('navPatientPortal')}
-            </button>
-            <button
-              type="button"
-              onClick={() => quickDemoLogin('doctor')}
-              aria-pressed="false"
-              className="px-2.5 py-1 rounded text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
-            >
-              {t('navDoctorPortal')}
-            </button>
-          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+            <span>{language === 'hi' ? 'सत्यापित नागरिक आभा प्रोफ़ाइल' : 'Verified Citizen ABHA Profile'}</span>
+          </span>
         </div>
       </div>
 
@@ -132,8 +113,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
               {language === 'hi'
-                ? `नमस्ते ${patient?.nameHi || patient?.name || 'रामेश्वर लाल पटेल'}, स्वास्थ्यसेतु में आपका स्वागत है!`
-                : `Hi ${patient?.name || 'Rameshwar Lal Patel'}, welcome to SwasthSetu!`}
+                ? `नमस्ते ${patient?.nameHi || patient?.name || 'नागरिक'}, स्वास्थ्यसेतु में आपका स्वागत है!`
+                : `Hi ${patient?.name || 'Citizen'}, welcome to SwasthSetu!`}
             </h2>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
               {language === 'hi'

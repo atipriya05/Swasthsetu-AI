@@ -23,11 +23,11 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   const { isOffline, addToQueue } = useOfflineSync();
 
   const [bookingFor, setBookingFor] = useState<'self' | 'relative'>('self');
-  const [patientName, setPatientName] = useState(patient?.name || 'Rameshwar Lal Patel');
-  const [patientAge, setPatientAge] = useState<number | string>(patient?.age || 58);
+  const [patientName, setPatientName] = useState(patient?.name || '');
+  const [patientAge, setPatientAge] = useState<number | string>(patient?.age || 35);
   const [patientGender, setPatientGender] = useState<string>(patient?.gender || 'Male');
   const [relationship, setRelationship] = useState<string>('Self');
-  const [patientPhone, setPatientPhone] = useState<string>(patient?.mobile || '9876543210');
+  const [patientPhone, setPatientPhone] = useState<string>(patient?.mobile || '');
 
   const [chiefComplaint, setChiefComplaint] = useState(
     language === 'hi' ? 'बुखार एवं शरीर में दर्द (3 दिन)' : 'Fever and body ache (3 days)'
@@ -60,11 +60,11 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setBookingFor('self');
-      setPatientName(patient?.name || 'Rameshwar Lal Patel');
-      setPatientAge(patient?.age || 58);
+      setPatientName(patient?.name || '');
+      setPatientAge(patient?.age || 35);
       setPatientGender(patient?.gender || 'Male');
       setRelationship('Self');
-      setPatientPhone(patient?.mobile || '9876543210');
+      setPatientPhone(patient?.mobile || '');
       setValidationError('');
     }
   }, [isOpen, patient]);
@@ -75,11 +75,11 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     setBookingFor(type);
     setValidationError('');
     if (type === 'self') {
-      setPatientName(patient?.name || 'Rameshwar Lal Patel');
-      setPatientAge(patient?.age || 58);
+      setPatientName(patient?.name || '');
+      setPatientAge(patient?.age || 35);
       setPatientGender(patient?.gender || 'Male');
       setRelationship('Self');
-      setPatientPhone(patient?.mobile || '9876543210');
+      setPatientPhone(patient?.mobile || '');
     } else {
       setPatientName('');
       setPatientAge('');

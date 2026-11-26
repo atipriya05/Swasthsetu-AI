@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { useAuth } from '../context/AuthContext';
 import { Phone, Mail, ShieldCheck, X } from 'lucide-react';
 
 interface FooterProps {
@@ -17,7 +16,6 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenReportGenerator
 }) => {
   const { language, t } = useLanguage();
-  const { quickDemoLogin } = useAuth();
   const [activeInfoModal, setActiveInfoModal] = useState<InfoModalType>(null);
 
   return (
@@ -104,10 +102,7 @@ export const Footer: React.FC<FooterProps> = ({
                 <li>
                   <button
                     type="button"
-                    onClick={() => {
-                      quickDemoLogin('doctor');
-                      onNavigate('doctor');
-                    }}
+                    onClick={() => onNavigate('doctor')}
                     className="hover:text-[var(--brand-primary)] transition-colors cursor-pointer"
                   >
                     {t('navDoctorPortal')}
