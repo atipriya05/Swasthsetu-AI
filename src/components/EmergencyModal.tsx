@@ -24,18 +24,18 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/55"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/55"
       role="dialog"
       aria-modal="true"
       aria-labelledby="emergency-modal-title"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl max-w-lg w-full overflow-hidden shadow-[var(--shadow-elevated)] border border-[var(--border-default)]"
+        className="bg-white rounded-xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-[var(--shadow-elevated)] border border-[var(--border-default)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-[var(--status-danger)] px-6 py-5 text-white flex items-start justify-between gap-4">
+        <div className="bg-[var(--status-danger)] px-4 sm:px-6 py-4 sm:py-5 text-white flex items-start justify-between gap-3 sticky top-0 z-10">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
             <div>
@@ -56,7 +56,7 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose 
         </div>
 
         {/* Emergency Helplines */}
-        <div className="p-6 space-y-3">
+        <div className="p-4 sm:p-6 space-y-3">
           <a
             href="tel:108"
             className="w-full p-4 rounded-lg bg-[var(--status-danger-bg)] border border-[var(--status-danger-border)] hover:bg-red-100/70 transition-colors flex items-center justify-between gap-3"
@@ -97,7 +97,7 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose 
           </a>
 
           <a
-            href="tel:+915862248100"
+            href="tel:+91761284102"
             className="w-full p-3.5 rounded-lg bg-white border border-[var(--border-default)] hover:border-[var(--brand-primary)] transition-colors flex items-center justify-between gap-3"
           >
             <div>
@@ -105,11 +105,30 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose 
                 {t('callNearestPHC')}
               </div>
               <div className="text-xs text-[var(--text-secondary)]">
-                Sitapur Primary Health Centre (2.1 km)
+                {language === 'hi'
+                  ? 'पनागर प्राथमिक स्वास्थ्य केंद्र, जबलपुर (2.4 किमी)'
+                  : 'Panagar Primary Health Centre, Jabalpur (2.4 km)'}
               </div>
             </div>
             <span className="font-mono text-xs font-semibold text-[var(--text-primary)] tabular-nums">
-              05862-248100
+              0761-284102
+            </span>
+          </a>
+
+          <a
+            href="tel:+917612620025"
+            className="w-full p-3.5 rounded-lg bg-white border border-[var(--border-default)] hover:border-[var(--brand-primary)] transition-colors flex items-center justify-between gap-3"
+          >
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                {language === 'hi' ? 'विक्टोरिया जिला अस्पताल आपातकालीन' : 'Victoria District Hospital Emergency'}
+              </div>
+              <div className="text-xs text-[var(--text-secondary)]">
+                {language === 'hi' ? 'सिविल लाइंस, जबलपुर (14.8 किमी)' : 'Civil Lines, Jabalpur (14.8 km)'}
+              </div>
+            </div>
+            <span className="font-mono text-xs font-semibold text-[var(--text-primary)] tabular-nums">
+              0761-2620025
             </span>
           </a>
 
@@ -123,8 +142,8 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose 
                 <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>
                   {language === 'hi'
-                    ? 'आपका संदर्भ स्थान (27.5684° N, 80.6829° E) 108 सहायता हेतु साझा कर दिया गया है।'
-                    : 'Reference coordinates (27.5684° N, 80.6829° E) logged for 108 dispatch coordination.'}
+                    ? 'आपका संदर्भ स्थान (23.2974° N, 79.9861° E - पड़रिया, जबलपुर) 108 सहायता हेतु साझा कर दिया गया है।'
+                    : 'Reference coordinates (23.2974° N, 79.9861° E - Padariya, Jabalpur) logged for 108 dispatch coordination.'}
                 </span>
               </div>
             ) : (

@@ -23,6 +23,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(
     appointments[0] || null
   );
+  const [mobileDoctorView, setMobileDoctorView] = useState<'queue' | 'rx'>('queue');
 
   const [diagnosis, setDiagnosis] = useState(
     'Acute Viral Bronchitis / Upper Respiratory Tract Infection'
@@ -109,15 +110,15 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
     setFormError('');
 
     const newRx: Prescription = {
-      id: `RX-UP-${Date.now().toString().slice(-6)}`,
+      id: `RX-MP-${Date.now().toString().slice(-6)}`,
       patientId: selectedAppointment.patientId || 'pat-001',
       patientName: selectedAppointment.patientName,
       patientAge: selectedAppointment.patientAge,
       patientGender: selectedAppointment.patientGender || 'Male',
       doctorId: doctor?.id || 'doc-001',
-      doctorName: doctor?.name || 'Dr. Rajesh Kumar',
-      doctorRegistrationNo: doctor?.registrationNo || doctor?.registrationNumber || 'MCI-UP-49201',
-      facilityName: doctor?.facilityName || doctor?.hospitalName || 'Sitapur Primary Health Centre',
+      doctorName: doctor?.name || 'Dr. Rajesh Kumar Patel',
+      doctorRegistrationNo: doctor?.registrationNo || doctor?.registrationNumber || 'MPMC-49201',
+      facilityName: doctor?.facilityName || doctor?.hospitalName || 'Panagar Primary Health Centre, Jabalpur',
       date: new Date().toLocaleDateString('en-GB', {
         day: '2-digit',
         month: 'short',
@@ -162,13 +163,13 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border-default)] text-sm">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[var(--text-secondary)]">
           <span className="font-semibold text-[var(--text-primary)]">
-            {doctor?.name || 'Dr. Rajesh Kumar'}
+            {doctor?.name || 'Dr. Rajesh Kumar Patel'}
           </span>
           <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
           <span className="text-xs">{doctor?.qualification || 'MBBS, MD (General Medicine)'}</span>
           <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
           <span className="font-mono text-xs tabular-nums">
-            Reg: {doctor?.registrationNo || doctor?.registrationNumber || 'MCI-UP-49201'}
+            Reg: {doctor?.registrationNo || doctor?.registrationNumber || 'MPMC-49201'}
           </span>
         </div>
 
@@ -213,7 +214,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
               {t('doctorDashboardTitle')}
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-              {doctor?.facilityName || doctor?.hospitalName || 'Sitapur Primary Health Centre (PHC)'}
+              {doctor?.facilityName || doctor?.hospitalName || 'Panagar Primary Health Centre (PHC), Jabalpur'}
             </p>
           </div>
         </div>
@@ -232,10 +233,38 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
         </div>
       </div>
 
+      {/* Mobile Doctor View Switcher */}
+      <div className="lg:hidden flex items-center bg-[var(--bg-subtle)] p-1 rounded-lg border border-[var(--border-default)]">
+        <button
+          type="button"
+          onClick={() => setMobileDoctorView('queue')}
+          className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            mobileDoctorView === 'queue'
+              ? 'bg-white text-[var(--brand-primary)] shadow-2xs'
+              : 'text-[var(--text-secondary)]'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>{language === 'hi' ? 'ओपीडी कतार' : 'OPD Queue'} ({appointments.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileDoctorView('rx')}
+          className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            mobileDoctorView === 'rx'
+              ? 'bg-white text-[var(--brand-primary)] shadow-2xs'
+              : 'text-[var(--text-secondary)]'
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>{language === 'hi' ? 'पर्ची पैड' : 'Prescription Pad'}</span>
+        </button>
+      </div>
+
       {/* Main Split: OPD Queue + e-Prescription Desk */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (4 cols): Active OPD Queue + Triage Summary */}
-        <div className="lg:col-span-4 space-y-5">
+        <div className={`lg:col-span-4 space-y-5 ${mobileDoctorView === 'queue' ? 'block' : 'hidden lg:block'}`}>
           <section
             aria-labelledby="opd-queue-heading"
             className="bg-white rounded-xl p-5 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-4"
@@ -258,7 +287,10 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
                   <button
                     key={apt.id}
                     type="button"
-                    onClick={() => setSelectedAppointment(apt)}
+                    onClick={() => {
+                      setSelectedAppointment(apt);
+                      setMobileDoctorView('rx');
+                    }}
                     className={`w-full text-left p-3.5 rounded-lg border transition-colors cursor-pointer space-y-1.5 ${
                       isSelected
                         ? 'bg-[var(--brand-primary-tint)] border-[var(--brand-primary)]'
@@ -280,6 +312,11 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
 
                     <div className="text-sm font-semibold text-[var(--text-primary)]">
                       {apt.patientName} · {apt.patientAge} yrs
+                      {apt.relationship && apt.relationship !== 'Self' ? (
+                        <span className="ml-1.5 text-xs font-normal text-[var(--brand-primary)]">
+                          ({apt.relationship})
+                        </span>
+                      ) : null}
                     </div>
 
                     <div className="text-xs text-[var(--text-secondary)] line-clamp-1">
@@ -332,7 +369,9 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
         {/* Right Column (8 cols): Electronic Prescription Form */}
         <section
           aria-labelledby="rx-desk-heading"
-          className="lg:col-span-8 bg-white rounded-xl p-6 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-6"
+          className={`lg:col-span-8 bg-white rounded-xl p-4 sm:p-6 border border-[var(--border-default)] shadow-[var(--shadow-card)] space-y-6 ${
+            mobileDoctorView === 'rx' ? 'block' : 'hidden lg:block'
+          }`}
         >
           <div className="pb-4 border-b border-[var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -340,12 +379,17 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({
                 {t('doctorRxTitle')}
               </p>
               <h2 id="rx-desk-heading" className="text-lg font-bold text-[var(--text-primary)] mt-0.5">
-                {selectedAppointment?.patientName || 'Rameshwar Lal Sharma'}
+                {selectedAppointment?.patientName || 'Rameshwar Lal Patel'}
+                {selectedAppointment?.relationship && selectedAppointment.relationship !== 'Self' ? (
+                  <span className="ml-2 text-xs font-medium text-[var(--brand-primary)]">
+                    ({selectedAppointment.relationship})
+                  </span>
+                ) : null}
               </h2>
               <p className="text-xs text-[var(--text-muted)] tabular-nums mt-0.5">
                 {language === 'hi'
-                  ? `आयु: ${selectedAppointment?.patientAge || 58} वर्ष · टोकन #${selectedAppointment?.tokenNumber || 14}`
-                  : `Age: ${selectedAppointment?.patientAge || 58} yrs · Token #${selectedAppointment?.tokenNumber || 14}`}
+                  ? `आयु: ${selectedAppointment?.patientAge || 58} वर्ष · लिंग: ${selectedAppointment?.patientGender || 'पुरुष'} · टोकन #${selectedAppointment?.tokenNumber || 14}`
+                  : `Age: ${selectedAppointment?.patientAge || 58} yrs · Gender: ${selectedAppointment?.patientGender || 'Male'} · Token #${selectedAppointment?.tokenNumber || 14}`}
               </p>
             </div>
 

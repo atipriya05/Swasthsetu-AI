@@ -54,7 +54,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   const nearestFacility = facilities[0] || null;
   const recentPrescription = prescriptions[0] || null;
   const userAppointments = appointments.filter(
-    (a) => a.patientName === (patient?.name || 'Rameshwar Lal Sharma')
+    (a) =>
+      a.patientName === (patient?.name || 'Rameshwar Lal Patel') ||
+      a.patientId === (patient?.id || 'pat-001') ||
+      a.patientPhone === (patient?.mobile || '9876543210')
   );
 
   const getFacilityTypeLabel = (type: HealthcareFacility['type']) => {
@@ -79,7 +82,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border-default)] text-sm">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[var(--text-secondary)]">
           <span className="font-semibold text-[var(--text-primary)]">
-            {language === 'hi' ? patient?.nameHi || patient?.name : patient?.name || 'Rameshwar Lal Sharma'}
+            {language === 'hi' ? patient?.nameHi || patient?.name : patient?.name || 'Rameshwar Lal Patel'}
           </span>
           <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
           <span className="font-mono text-xs tabular-nums">
@@ -121,7 +124,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
       {/* Formal Hero Section — Clear H1, One-Line Value Prop, Single Primary CTA */}
       <section
         aria-labelledby="hero-heading"
-        className="bg-white rounded-xl border border-[var(--border-default)] p-6 sm:p-10 shadow-[var(--shadow-card)]"
+        className="bg-white rounded-xl border border-[var(--border-default)] p-5 sm:p-10 shadow-[var(--shadow-card)]"
       >
         <div className="max-w-3xl space-y-4">
           <p className="text-xs font-semibold text-[var(--brand-teal)]">
@@ -129,18 +132,18 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           </p>
           <h1
             id="hero-heading"
-            className="text-2xl sm:text-4xl font-bold text-[var(--text-primary)] leading-tight"
+            className="text-xl sm:text-4xl font-bold text-[var(--text-primary)] leading-tight"
           >
             {t('heroHeadline')}
           </h1>
-          <p className="text-base text-[var(--text-secondary)] leading-relaxed max-w-2xl">
+          <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed max-w-2xl">
             {t('heroSubheadline')}
           </p>
-          <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
               type="button"
               onClick={onOpenChatbot || onOpenReportGenerator}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] transition-colors cursor-pointer"
             >
               <MessageSquareText className="w-4 h-4" aria-hidden="true" />
               <span>{t('heroPrimaryCta')}</span>
@@ -148,7 +151,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
             <button
               type="button"
               onClick={onNavigateToMap}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold text-[var(--brand-primary)] bg-white border border-[var(--border-strong)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 rounded-md text-sm font-semibold text-[var(--brand-primary)] bg-white border border-[var(--border-strong)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
             >
               <span>{t('heroSecondaryCta')}</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -182,7 +185,13 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   : userAppointments[0].facilityName}
               </h2>
               <p className="text-sm text-[var(--text-secondary)] tabular-nums">
-                {userAppointments[0].doctorName} · {userAppointments[0].appointmentDate} ·{' '}
+                <span className="font-medium text-[var(--text-primary)]">
+                  {userAppointments[0].patientName}
+                  {userAppointments[0].relationship && userAppointments[0].relationship !== 'Self'
+                    ? ` (${userAppointments[0].relationship})`
+                    : ''}
+                </span>{' '}
+                · {userAppointments[0].doctorName} · {userAppointments[0].appointmentDate} ·{' '}
                 {userAppointments[0].timeSlot}
               </p>
             </div>

@@ -155,6 +155,7 @@ export interface Appointment {
   patientAge: number;
   patientGender?: string;
   patientPhone: string;
+  relationship?: string;
   facilityId: string;
   facilityName: string;
   facilityNameHi?: string;

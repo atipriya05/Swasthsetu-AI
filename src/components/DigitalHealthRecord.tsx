@@ -146,20 +146,20 @@ export const DigitalHealthRecord: React.FC<DigitalHealthRecordProps> = ({
       <div
         role="tablist"
         aria-label="Health record categories"
-        className="inline-flex flex-wrap items-center gap-1 bg-[var(--bg-subtle)] p-1 rounded-lg border border-[var(--border-default)]"
+        className="flex items-center gap-1 bg-[var(--bg-subtle)] p-1 rounded-lg border border-[var(--border-default)] overflow-x-auto max-w-full scrollbar-none"
       >
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === 'PRESCRIPTIONS'}
           onClick={() => setActiveTab('PRESCRIPTIONS')}
-          className={`px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer ${
+          className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
             activeTab === 'PRESCRIPTIONS'
               ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <FileText className="w-4 h-4" aria-hidden="true" />
+          <FileText className="w-4 h-4 shrink-0" aria-hidden="true" />
           <span>
             {t('myPrescriptions')} ({prescriptions.length})
           </span>
@@ -170,13 +170,13 @@ export const DigitalHealthRecord: React.FC<DigitalHealthRecordProps> = ({
           role="tab"
           aria-selected={activeTab === 'VACCINES'}
           onClick={() => setActiveTab('VACCINES')}
-          className={`px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer ${
+          className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
             activeTab === 'VACCINES'
               ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <Syringe className="w-4 h-4" aria-hidden="true" />
+          <Syringe className="w-4 h-4 shrink-0" aria-hidden="true" />
           <span>
             {t('vaccineSchedule')} ({vaccinations.length})
           </span>
@@ -187,13 +187,13 @@ export const DigitalHealthRecord: React.FC<DigitalHealthRecordProps> = ({
           role="tab"
           aria-selected={activeTab === 'AI_TRIAGE'}
           onClick={() => setActiveTab('AI_TRIAGE')}
-          className={`px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer ${
+          className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
             activeTab === 'AI_TRIAGE'
               ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <ClipboardList className="w-4 h-4" aria-hidden="true" />
+          <ClipboardList className="w-4 h-4 shrink-0" aria-hidden="true" />
           <span>
             {t('aiTriageReports')} ({triageHistory.length})
           </span>
@@ -204,13 +204,13 @@ export const DigitalHealthRecord: React.FC<DigitalHealthRecordProps> = ({
           role="tab"
           aria-selected={activeTab === 'ABHA_CARD'}
           onClick={() => setActiveTab('ABHA_CARD')}
-          className={`px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer ${
+          className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
             activeTab === 'ABHA_CARD'
               ? 'bg-white text-[var(--brand-primary)] font-semibold shadow-2xs'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <QrCode className="w-4 h-4" aria-hidden="true" />
+          <QrCode className="w-4 h-4 shrink-0" aria-hidden="true" />
           <span>{t('abhaCard')}</span>
         </button>
       </div>

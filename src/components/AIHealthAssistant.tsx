@@ -14,9 +14,10 @@ import {
   Check,
   Stethoscope,
   User,
+  Square,
   Info
 } from 'lucide-react';
-import { SpeechService, SpeechRecognitionService } from '../utils/speech';
+import { SpeechService, UnifiedVoiceInput } from '../utils/speech';
 
 export interface ChatMessage {
   id: string;
@@ -58,7 +59,8 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
   const [chatLanguage, setChatLanguage] = useState<string>(globalAppLang || 'en');
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'recording_fallback' | 'transcribing'>('idle');
+  const [voiceError, setVoiceError] = useState('');
   const [autoSpeakEnabled, setAutoSpeakEnabled] = useState(false);
   const [activePlayingId, setActivePlayingId] = useState<string | null>(null);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
@@ -133,8 +135,7 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
       };
     } else {
       SpeechService.stop();
-      SpeechRecognitionService.stopListening();
-      setIsListening(false);
+      UnifiedVoiceInput.stop();
       setActivePlayingId(null);
       setIsLangMenuOpen(false);
     }
@@ -143,7 +144,7 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
   useEffect(() => {
     return () => {
       SpeechService.stop();
-      SpeechRecognitionService.stopListening();
+      UnifiedVoiceInput.stop();
     };
   }, []);
 
@@ -197,6 +198,10 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     const rawText = (textToSend ?? inputText).trim();
     if (!rawText || isLoading) return;
 
+    // Immediately stop any active voice input to prevent speech events from re-populating the chat box
+    await UnifiedVoiceInput.stop();
+    setVoiceState('idle');
+
     SpeechService.stop();
     setActivePlayingId(null);
 
@@ -210,6 +215,9 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
 
     setMessages((prev) => [...prev, userMsg]);
     setInputText('');
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
     setIsLoading(true);
 
     try {
@@ -292,34 +300,32 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
     );
   };
 
-  const handleToggleVoiceInput = () => {
-    if (isListening) {
-      SpeechRecognitionService.stopListening();
-      setIsListening(false);
-      return;
-    }
-
+  const handleToggleVoiceInput = async () => {
+    setVoiceError('');
     SpeechService.stop();
     setActivePlayingId(null);
 
-    const started = SpeechRecognitionService.startListening(
-      chatLanguage,
-      (transcript, isFinal) => {
-        setInputText(transcript);
-        if (isFinal && transcript.trim().length > 3) {
-          SpeechRecognitionService.stopListening();
-          setIsListening(false);
-          handleSendMessage(transcript);
-        }
-      },
-      () => setIsListening(true),
-      () => setIsListening(false),
-      () => setIsListening(false)
-    );
-
-    if (!started) {
-      setIsListening(false);
+    if (voiceState !== 'idle') {
+      await UnifiedVoiceInput.stop({
+        language: chatLanguage,
+        onTranscript: (transcript) => {
+          setInputText(transcript);
+        },
+        onStateChange: (state) => setVoiceState(state),
+        onError: (err) => setVoiceError(err)
+      });
+      return;
     }
+
+    await UnifiedVoiceInput.start({
+      language: chatLanguage,
+      onTranscript: (transcript) => {
+        setInputText(transcript);
+        setVoiceError('');
+      },
+      onStateChange: (state) => setVoiceState(state),
+      onError: (err) => setVoiceError(err)
+    });
   };
 
   const handleClearChat = () => {
@@ -361,39 +367,39 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/50"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-900/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="assistant-modal-title"
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-2xl h-[92vh] max-h-[760px] rounded-xl shadow-[var(--shadow-elevated)] flex flex-col overflow-hidden border border-[var(--border-default)]"
+        className="bg-white w-full max-w-2xl h-[100dvh] sm:h-[92vh] sm:max-h-[760px] rounded-none sm:rounded-xl shadow-[var(--shadow-elevated)] flex flex-col overflow-hidden border-0 sm:border border-[var(--border-default)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Clinical Modal Header */}
-        <div className="bg-white px-5 py-4 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="bg-white px-3 sm:px-5 py-3 sm:py-4 border-b border-[var(--border-default)] flex items-center justify-between gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div
-              className="w-9 h-9 rounded-lg bg-[var(--brand-primary)] text-white flex items-center justify-center shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[var(--brand-primary)] text-white flex items-center justify-center shrink-0"
               aria-hidden="true"
             >
-              <Stethoscope className="w-5 h-5" />
+              <Stethoscope className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
               <h2
                 id="assistant-modal-title"
-                className="text-base font-semibold text-[var(--text-primary)] truncate"
+                className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate"
               >
                 {t('chatbotTitle')}
               </h2>
-              <p className="text-xs text-[var(--text-muted)] truncate">
+              <p className="text-[11px] sm:text-xs text-[var(--text-muted)] truncate hidden sm:block">
                 {t('chatbotSubtitle')}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Language Dropdown */}
             <div className="relative">
               <button
@@ -401,12 +407,15 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
                 onClick={() => setIsLangMenuOpen((prev) => !prev)}
                 aria-expanded={isLangMenuOpen}
                 aria-haspopup="listbox"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-primary)] bg-[var(--bg-subtle)] hover:bg-slate-200/70 border border-[var(--border-default)] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-primary)] bg-[var(--bg-subtle)] hover:bg-slate-200/70 border border-[var(--border-default)] transition-colors cursor-pointer"
                 title="Change conversation language"
               >
                 <Globe className="w-3.5 h-3.5 text-[var(--text-secondary)]" aria-hidden="true" />
-                <span>
+                <span className="hidden sm:inline">
                   {SUPPORTED_LANGUAGES.find((l) => l.code === chatLanguage)?.label || 'English'}
+                </span>
+                <span className="sm:hidden font-mono uppercase font-semibold">
+                  {chatLanguage}
                 </span>
               </button>
 
@@ -646,25 +655,56 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
         </div>
 
         {/* Active Voice Recording Notice */}
-        {isListening && (
-          <div className="bg-[var(--status-danger-bg)] border-t border-[var(--status-danger-border)] text-[var(--status-danger)] px-4 py-2 flex items-center justify-between text-xs font-medium">
+        {voiceState !== 'idle' && (
+          <div className={`border-t px-4 py-2 flex items-center justify-between text-xs font-medium ${
+            voiceState === 'listening'
+              ? 'bg-[var(--status-danger-bg)] border-[var(--status-danger-border)] text-[var(--status-danger)]'
+              : voiceState === 'recording_fallback'
+              ? 'bg-amber-50 border-amber-200 text-amber-900'
+              : 'bg-blue-50 border-blue-200 text-blue-900'
+          }`}>
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              {voiceState === 'transcribing' ? (
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              )}
               <span>
-                {chatLanguage === 'hi'
-                  ? 'वॉयस रिकॉर्डिंग सक्रिय है। कृपया स्पष्ट बोलें।'
-                  : 'Voice input active. Speak clearly in your selected language.'}
+                {voiceState === 'listening'
+                  ? (chatLanguage === 'hi'
+                      ? 'वॉयस इनपुट सक्रिय है। कृपया स्पष्ट बोलें।'
+                      : 'Live speech recognition active. Speak clearly into your microphone.')
+                  : voiceState === 'recording_fallback'
+                  ? (chatLanguage === 'hi'
+                      ? 'ऑडियो रिकॉर्डिंग जारी है... समाप्त होने पर स्टॉप बटन दबाएं।'
+                      : 'Recording audio... Click stop when finished to transcribe.')
+                  : (chatLanguage === 'hi'
+                      ? 'AI आवाज़ का विश्लेषण कर रहा है...'
+                      : 'Transcribing speech with AI...')}
               </span>
             </div>
+            {voiceState !== 'transcribing' && (
+              <button
+                type="button"
+                onClick={handleToggleVoiceInput}
+                className="px-2.5 py-1 rounded bg-white border border-current font-semibold cursor-pointer"
+              >
+                {t('voiceInputStop')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Voice Error Notice */}
+        {voiceError && (
+          <div className="bg-amber-50 border-t border-amber-200 px-4 py-2 text-xs text-amber-900 flex items-center justify-between">
+            <span className="line-clamp-2">{voiceError}</span>
             <button
               type="button"
-              onClick={() => {
-                SpeechRecognitionService.stopListening();
-                setIsListening(false);
-              }}
-              className="px-2.5 py-1 rounded bg-white border border-[var(--status-danger-border)] text-[var(--status-danger)] font-semibold cursor-pointer"
+              onClick={() => setVoiceError('')}
+              className="ml-2 font-bold hover:underline shrink-0"
             >
-              {t('voiceInputStop')}
+              ✕
             </button>
           </div>
         )}
@@ -675,23 +715,32 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
             e.preventDefault();
             handleSendMessage();
           }}
-          className="p-3 sm:p-4 bg-white border-t border-[var(--border-default)] flex items-center gap-2"
+          className="p-2.5 sm:p-4 bg-white border-t border-[var(--border-default)] flex items-center gap-2 safe-area-pb"
         >
           <button
             type="button"
             onClick={handleToggleVoiceInput}
-            aria-label={isListening ? t('voiceInputStop') : t('voiceInputStart')}
-            title={isListening ? t('voiceInputStop') : t('voiceInputStart')}
-            className={`p-2.5 rounded-md border transition-colors cursor-pointer shrink-0 ${
-              isListening
-                ? 'bg-[var(--status-danger)] text-white border-[var(--status-danger)]'
+            disabled={voiceState === 'transcribing'}
+            aria-label={voiceState !== 'idle' ? t('voiceInputStop') : t('voiceInputStart')}
+            title={voiceState !== 'idle' ? t('voiceInputStop') : t('voiceInputStart')}
+            className={`w-10 h-10 sm:w-auto sm:h-auto sm:p-2.5 rounded-lg sm:rounded-md border flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0 ${
+              voiceState === 'listening'
+                ? 'bg-[var(--status-danger)] text-white border-[var(--status-danger)] animate-pulse'
+                : voiceState === 'recording_fallback'
+                ? 'bg-amber-600 text-white border-amber-600 animate-pulse'
+                : voiceState === 'transcribing'
+                ? 'bg-slate-100 text-[var(--text-muted)] border-[var(--border-default)] cursor-wait'
                 : 'bg-[var(--bg-subtle)] text-[var(--text-primary)] border-[var(--border-strong)] hover:bg-slate-200/70'
             }`}
           >
-            {isListening ? (
-              <MicOff className="w-4 h-4" aria-hidden="true" />
+            {voiceState === 'listening' ? (
+              <MicOff className="w-5 h-5 sm:w-4 sm:h-4" aria-hidden="true" />
+            ) : voiceState === 'recording_fallback' ? (
+              <Square className="w-4 h-4 fill-current" aria-hidden="true" />
+            ) : voiceState === 'transcribing' ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Mic className="w-4 h-4" aria-hidden="true" />
+              <Mic className="w-5 h-5 sm:w-4 sm:h-4" aria-hidden="true" />
             )}
           </button>
 
@@ -706,18 +755,18 @@ export const AIHealthAssistant: React.FC<AIHealthAssistantProps> = ({
             onChange={(e) => setInputText(e.target.value)}
             placeholder={
               chatLanguage === 'hi'
-                ? 'अपने लक्षण लिखें या माइक से बोलें...'
-                : 'Describe your symptoms or ask a health question...'
+                ? 'लक्षण लिखें या बोलें...'
+                : 'Describe symptoms or speak...'
             }
             disabled={isLoading}
-            className="flex-1 px-3.5 py-2.5 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:bg-white focus:border-[var(--brand-primary)] transition-colors disabled:opacity-60"
+            className="flex-1 px-3 sm:px-3.5 py-2.5 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-lg sm:rounded-md text-base sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:bg-white focus:border-[var(--brand-primary)] transition-colors disabled:opacity-60"
           />
 
           <button
             type="submit"
             disabled={!inputText.trim() || isLoading}
             aria-label="Send message"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-lg sm:rounded-md text-sm font-semibold text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer shrink-0"
           >
             <Send className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">{chatLanguage === 'hi' ? 'भेजें' : 'Send'}</span>

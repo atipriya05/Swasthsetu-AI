@@ -16,7 +16,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccessLogin }) => {
   const [mobile, setMobile] = useState('9876543210');
   const [otp, setOtp] = useState('123456');
 
-  const [doctorIdentifier, setDoctorIdentifier] = useState('DOC-UP-8842');
+  const [doctorIdentifier, setDoctorIdentifier] = useState('DOC-MP-8842');
   const [password, setPassword] = useState('health123');
 
   const [error, setError] = useState('');
@@ -45,8 +45,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccessLogin }) => {
     } else {
       setError(
         language === 'hi'
-          ? 'अमान्य चिकित्सा अधिकारी आईडी या पासवर्ड। डेमो: DOC-UP-8842 / health123'
-          : 'Invalid Medical Officer ID or password. Demo credentials: DOC-UP-8842 / health123'
+          ? 'अमान्य चिकित्सा अधिकारी आईडी या पासवर्ड। डेमो: DOC-MP-8842 / health123'
+          : 'Invalid Medical Officer ID or password. Demo credentials: DOC-MP-8842 / health123'
       );
     }
   };

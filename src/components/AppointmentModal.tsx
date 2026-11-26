@@ -3,7 +3,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
 import { HealthcareFacility, Appointment } from '../types';
-import { CheckCircle2, X } from 'lucide-react';
+import { CheckCircle2, X, User, Users } from 'lucide-react';
 
 interface AppointmentModalProps {
   facility: HealthcareFacility | null;
@@ -21,6 +21,13 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   const { language, t } = useLanguage();
   const { patient } = useAuth();
   const { isOffline, addToQueue } = useOfflineSync();
+
+  const [bookingFor, setBookingFor] = useState<'self' | 'relative'>('self');
+  const [patientName, setPatientName] = useState(patient?.name || 'Rameshwar Lal Patel');
+  const [patientAge, setPatientAge] = useState<number | string>(patient?.age || 58);
+  const [patientGender, setPatientGender] = useState<string>(patient?.gender || 'Male');
+  const [relationship, setRelationship] = useState<string>('Self');
+  const [patientPhone, setPatientPhone] = useState<string>(patient?.mobile || '9876543210');
 
   const [chiefComplaint, setChiefComplaint] = useState(
     language === 'hi' ? 'बुखार एवं शरीर में दर्द (3 दिन)' : 'Fever and body ache (3 days)'
@@ -49,10 +56,61 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Sync defaults on modal open
+  useEffect(() => {
+    if (isOpen) {
+      setBookingFor('self');
+      setPatientName(patient?.name || 'Rameshwar Lal Patel');
+      setPatientAge(patient?.age || 58);
+      setPatientGender(patient?.gender || 'Male');
+      setRelationship('Self');
+      setPatientPhone(patient?.mobile || '9876543210');
+      setValidationError('');
+    }
+  }, [isOpen, patient]);
+
   if (!isOpen || !facility) return null;
+
+  const handleSelectBookingFor = (type: 'self' | 'relative') => {
+    setBookingFor(type);
+    setValidationError('');
+    if (type === 'self') {
+      setPatientName(patient?.name || 'Rameshwar Lal Patel');
+      setPatientAge(patient?.age || 58);
+      setPatientGender(patient?.gender || 'Male');
+      setRelationship('Self');
+      setPatientPhone(patient?.mobile || '9876543210');
+    } else {
+      setPatientName('');
+      setPatientAge('');
+      setPatientGender('Female');
+      setRelationship(language === 'hi' ? 'पत्नी' : 'Spouse');
+      setPatientPhone(patient?.mobile || '9876543210');
+    }
+  };
 
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanName = patientName.trim();
+    if (!cleanName) {
+      setValidationError(
+        language === 'hi'
+          ? 'कृपया मरीज़ का नाम दर्ज करें।'
+          : 'Please enter the patient name.'
+      );
+      return;
+    }
+
+    const numAge = Number(patientAge);
+    if (!patientAge || isNaN(numAge) || numAge <= 0 || numAge > 125) {
+      setValidationError(
+        language === 'hi'
+          ? 'कृपया वैध आयु दर्ज करें (1 - 120 वर्ष)।'
+          : 'Please enter a valid age (1 - 120 years).'
+      );
+      return;
+    }
+
     if (!chiefComplaint.trim()) {
       setValidationError(
         language === 'hi'
@@ -66,9 +124,11 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     setIsSubmitting(true);
 
     const payload = {
-      patientName: patient?.name || 'Rameshwar Lal Sharma',
-      patientAge: patient?.age || 58,
-      patientPhone: patient?.mobile || '9876543210',
+      patientName: cleanName,
+      patientAge: numAge,
+      patientGender: patientGender || 'Male',
+      patientPhone: patientPhone.trim() || patient?.mobile || '9876543210',
+      relationship: bookingFor === 'self' ? 'Self' : relationship,
       facilityId: facility.id,
       facilityName: facility.name,
       doctorId: 'doc-001',
@@ -127,21 +187,21 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-900/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="appointment-modal-title"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl max-w-lg w-full overflow-hidden shadow-[var(--shadow-elevated)] border border-[var(--border-default)]"
+        className="bg-white rounded-none sm:rounded-xl max-w-lg w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-y-auto shadow-[var(--shadow-elevated)] border-0 sm:border border-[var(--border-default)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 border-b border-[var(--border-default)] flex items-start justify-between gap-4">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-5 border-b border-[var(--border-default)] flex items-start justify-between gap-3 sticky top-0 bg-white z-10">
           <div>
             <p className="text-xs font-semibold text-[var(--brand-teal)]">
-              National Health Mission (NHM)
+              National Health Mission (NHM) · Jabalpur
             </p>
             <h2
               id="appointment-modal-title"
@@ -189,10 +249,17 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 #{bookedAppointment.tokenNumber}
               </div>
               <div className="text-sm font-semibold text-[var(--text-primary)] pt-1">
-                {bookedAppointment.patientName} · {facility.doctorName}
+                {bookedAppointment.patientName}{' '}
+                {bookedAppointment.relationship && bookedAppointment.relationship !== 'Self' ? (
+                  <span className="text-xs font-medium text-[var(--brand-primary)]">
+                    ({bookedAppointment.relationship})
+                  </span>
+                ) : null}{' '}
+                · {facility.doctorName}
               </div>
               <div className="text-xs text-[var(--text-secondary)] tabular-nums">
-                {bookedAppointment.appointmentDate} · {bookedAppointment.timeSlot}
+                {bookedAppointment.appointmentDate} · {bookedAppointment.timeSlot} ·{' '}
+                {bookedAppointment.patientGender || 'Male'}, {bookedAppointment.patientAge} yrs
               </div>
             </div>
 
@@ -205,7 +272,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
             </button>
           </div>
         ) : (
-          <form onSubmit={handleBook} className="p-6 space-y-4" noValidate>
+          <form onSubmit={handleBook} className="p-4 sm:p-6 space-y-4" noValidate>
             {validationError && (
               <div
                 role="alert"
@@ -215,20 +282,112 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
               </div>
             )}
 
+            {/* Booking For Switcher: Self vs Relative */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[var(--text-primary)]">
+                {language === 'hi' ? 'अपॉइंटमेंट किसके लिए है?' : 'Who is this appointment for?'}
+              </label>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-[var(--bg-subtle)] rounded-lg border border-[var(--border-default)]">
+                <button
+                  type="button"
+                  onClick={() => handleSelectBookingFor('self')}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    bookingFor === 'self'
+                      ? 'bg-white text-[var(--brand-primary)] shadow-sm border border-[var(--border-strong)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>{language === 'hi' ? 'स्वयं (खुद के लिए)' : 'Myself'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectBookingFor('relative')}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    bookingFor === 'relative'
+                      ? 'bg-white text-[var(--brand-primary)] shadow-sm border border-[var(--border-strong)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>{language === 'hi' ? 'परिवार / रिश्तेदार' : 'Family / Relative'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* If relative, Relationship selector */}
+            {bookingFor === 'relative' && (
+              <div className="space-y-1.5 bg-blue-50/60 p-3 rounded-lg border border-blue-100">
+                <label
+                  htmlFor="apt-relationship"
+                  className="block text-xs font-semibold text-[var(--brand-primary)]"
+                >
+                  {language === 'hi' ? 'मरीज़ से आपका संबंध (रिश्ता)' : 'Relationship with Patient'}
+                </label>
+                <select
+                  id="apt-relationship"
+                  value={relationship}
+                  onChange={(e) => setRelationship(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] focus:border-[var(--brand-primary)]"
+                >
+                  <option value={language === 'hi' ? 'पत्नी' : 'Spouse'}>
+                    {language === 'hi' ? 'जीवनसाथी (पति / पत्नी)' : 'Spouse (Wife / Husband)'}
+                  </option>
+                  <option value={language === 'hi' ? 'माता' : 'Mother'}>
+                    {language === 'hi' ? 'माता (Mother)' : 'Mother'}
+                  </option>
+                  <option value={language === 'hi' ? 'पिता' : 'Father'}>
+                    {language === 'hi' ? 'पिता (Father)' : 'Father'}
+                  </option>
+                  <option value={language === 'hi' ? 'बेटा' : 'Son'}>
+                    {language === 'hi' ? 'बेटा (Son)' : 'Son'}
+                  </option>
+                  <option value={language === 'hi' ? 'बेटी' : 'Daughter'}>
+                    {language === 'hi' ? 'बेटी (Daughter)' : 'Daughter'}
+                  </option>
+                  <option value={language === 'hi' ? 'भाई' : 'Brother'}>
+                    {language === 'hi' ? 'भाई (Brother)' : 'Brother'}
+                  </option>
+                  <option value={language === 'hi' ? 'बहन' : 'Sister'}>
+                    {language === 'hi' ? 'बहन (Sister)' : 'Sister'}
+                  </option>
+                  <option value={language === 'hi' ? 'अन्य परिजन' : 'Other Relative'}>
+                    {language === 'hi' ? 'अन्य परिजन (Other Relative)' : 'Other Relative'}
+                  </option>
+                </select>
+              </div>
+            )}
+
+            {/* Patient Name & Assigned Doctor */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label
                   htmlFor="apt-patient-name"
-                  className="block text-xs font-semibold text-[var(--text-primary)]"
+                  className="block text-xs font-semibold text-[var(--text-primary)] flex items-center justify-between"
                 >
-                  {t('patientName')}
+                  <span>{t('patientName')}</span>
+                  {bookingFor === 'relative' && (
+                    <span className="text-[10px] text-[var(--brand-primary)] font-normal">
+                      {language === 'hi' ? 'संपादनीय' : 'Editable'}
+                    </span>
+                  )}
                 </label>
                 <input
                   id="apt-patient-name"
                   type="text"
-                  readOnly
-                  value={patient?.name || 'Rameshwar Lal Sharma'}
-                  className="w-full px-3.5 py-2.5 bg-[var(--bg-subtle)] border border-[var(--border-default)] rounded-md text-sm text-[var(--text-primary)]"
+                  value={patientName}
+                  onChange={(e) => setPatientName(e.target.value)}
+                  placeholder={
+                    bookingFor === 'relative'
+                      ? language === 'hi'
+                        ? 'उदा. सुनीता पटेल (रिश्तेदार का नाम)'
+                        : 'e.g. Sunita Patel (Relative name)'
+                      : language === 'hi'
+                      ? 'उदा. रामेश्वर लाल पटेल'
+                      : 'e.g. Rameshwar Lal Patel'
+                  }
+                  className="w-full px-3.5 py-2.5 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] focus:bg-white focus:border-[var(--brand-primary)]"
+                  required
                 />
               </div>
 
@@ -249,6 +408,66 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
               </div>
             </div>
 
+            {/* Age, Gender & Contact Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="apt-patient-age"
+                  className="block text-xs font-semibold text-[var(--text-primary)]"
+                >
+                  {language === 'hi' ? 'आयु (वर्ष)' : 'Age (years)'}
+                </label>
+                <input
+                  id="apt-patient-age"
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={patientAge}
+                  onChange={(e) => setPatientAge(e.target.value)}
+                  placeholder={language === 'hi' ? 'उदा. 32' : 'e.g. 32'}
+                  className="w-full px-3 py-2 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] focus:bg-white focus:border-[var(--brand-primary)]"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="apt-patient-gender"
+                  className="block text-xs font-semibold text-[var(--text-primary)]"
+                >
+                  {language === 'hi' ? 'लिंग' : 'Gender'}
+                </label>
+                <select
+                  id="apt-patient-gender"
+                  value={patientGender}
+                  onChange={(e) => setPatientGender(e.target.value)}
+                  className="w-full px-3 py-2 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] focus:bg-white focus:border-[var(--brand-primary)]"
+                >
+                  <option value="Male">{language === 'hi' ? 'पुरुष (Male)' : 'Male'}</option>
+                  <option value="Female">{language === 'hi' ? 'महिला (Female)' : 'Female'}</option>
+                  <option value="Other">{language === 'hi' ? 'अन्य (Other)' : 'Other'}</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="apt-patient-phone"
+                  className="block text-xs font-semibold text-[var(--text-primary)]"
+                >
+                  {language === 'hi' ? 'संपर्क मोबाइल' : 'Contact Phone'}
+                </label>
+                <input
+                  id="apt-patient-phone"
+                  type="tel"
+                  value={patientPhone}
+                  onChange={(e) => setPatientPhone(e.target.value)}
+                  placeholder="10-digit mobile"
+                  className="w-full px-3 py-2 bg-[var(--bg-canvas)] border border-[var(--border-strong)] rounded-md text-sm text-[var(--text-primary)] focus:bg-white focus:border-[var(--brand-primary)]"
+                />
+              </div>
+            </div>
+
+            {/* Chief Complaint */}
             <div className="space-y-1.5">
               <label
                 htmlFor="apt-complaint"
@@ -271,6 +490,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
               />
             </div>
 
+            {/* Preferred Time Slot */}
             <div className="space-y-1.5">
               <label
                 htmlFor="apt-slot"

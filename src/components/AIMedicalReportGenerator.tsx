@@ -18,7 +18,7 @@ import {
   Info
 } from 'lucide-react';
 import { AITriageReport, Language } from '../types';
-import { SpeechService, SpeechRecognitionService } from '../utils/speech';
+import { SpeechService, UnifiedVoiceInput } from '../utils/speech';
 
 interface AIMedicalReportGeneratorProps {
   isOpen: boolean;
@@ -44,7 +44,8 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
         : 'I have had a high fever for 3 days with chills at night and a persistent headache.')
   );
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(language);
-  const [isListening, setIsListening] = useState(false);
+  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'recording_fallback' | 'transcribing'>('idle');
+  const [voiceError, setVoiceError] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [generatedReport, setGeneratedReport] = useState<AITriageReport | null>(null);
@@ -73,7 +74,7 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
   useEffect(() => {
     return () => {
       SpeechService.stop();
-      SpeechRecognitionService.stopListening();
+      UnifiedVoiceInput.stop();
     };
   }, []);
 
@@ -118,27 +119,31 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
     }
   ];
 
-  const handleToggleVoice = () => {
-    if (isListening) {
-      SpeechRecognitionService.stopListening();
-      setIsListening(false);
+  const handleToggleVoice = async () => {
+    setVoiceError('');
+    if (voiceState !== 'idle') {
+      await UnifiedVoiceInput.stop({
+        language: selectedLanguage,
+        onTranscript: (transcript) => {
+          setInputSymptom(transcript);
+          setValidationError('');
+        },
+        onStateChange: (state) => setVoiceState(state),
+        onError: (err) => setVoiceError(err)
+      });
       return;
     }
 
-    const started = SpeechRecognitionService.startListening(
-      selectedLanguage,
-      (transcript) => {
+    await UnifiedVoiceInput.start({
+      language: selectedLanguage,
+      onTranscript: (transcript) => {
         setInputSymptom(transcript);
         setValidationError('');
+        setVoiceError('');
       },
-      () => setIsListening(true),
-      () => setIsListening(false),
-      () => setIsListening(false)
-    );
-
-    if (!started) {
-      setIsListening(false);
-    }
+      onStateChange: (state) => setVoiceState(state),
+      onError: (err) => setVoiceError(err)
+    });
   };
 
   const handleGenerateReport = async (e?: React.FormEvent) => {
@@ -154,6 +159,13 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
     }
     if (isGenerating) return;
 
+    // Immediately stop any active voice input so speech events don't re-fill the box
+    await UnifiedVoiceInput.stop();
+    setVoiceState('idle');
+
+    // Clear input symptom box upon submission so it gets emptied
+    setInputSymptom('');
+
     setValidationError('');
     setIsGenerating(true);
     setGeneratedReport(null);
@@ -163,11 +175,11 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
       text: textToAnalyze,
       language: selectedLanguage,
       patientId: patient?.id || 'pat-001',
-      patientName: patient?.name || 'Rameshwar Lal Sharma',
+      patientName: patient?.name || 'Rameshwar Lal Patel',
       patientAge: patient?.age || 58,
       patientGender: patient?.gender || 'Male',
       patientPhone: patient?.mobile || '9876543210',
-      village: patient?.village || 'Rampur Village'
+      village: patient?.village || 'Padariya Village, Panagar'
     };
 
     try {
@@ -347,33 +359,33 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-900/50 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="triage-modal-title"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl max-w-3xl w-full my-6 overflow-hidden shadow-[var(--shadow-elevated)] border border-[var(--border-default)] flex flex-col max-h-[90vh]"
+        className="bg-white rounded-none sm:rounded-xl max-w-3xl w-full my-0 sm:my-6 overflow-hidden shadow-[var(--shadow-elevated)] border-0 sm:border border-[var(--border-default)] flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-white border-b border-[var(--border-default)] px-6 py-5 flex items-start justify-between gap-4">
-          <div className="space-y-1">
+        <div className="bg-white border-b border-[var(--border-default)] px-4 sm:px-6 py-3.5 sm:py-5 flex items-start justify-between gap-3 shrink-0">
+          <div className="space-y-0.5 sm:space-y-1">
             <h2
               id="triage-modal-title"
-              className="text-lg sm:text-xl font-bold text-[var(--text-primary)]"
+              className="text-base sm:text-xl font-bold text-[var(--text-primary)]"
             >
               {t('reportGeneratorTitle')}
             </h2>
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
               {t('reportGeneratorSubtitle')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer shrink-0"
+            className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer shrink-0"
             aria-label={t('close')}
           >
             <X className="w-5 h-5" aria-hidden="true" />
@@ -381,7 +393,7 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+        <div className="px-4 py-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
           {/* Sample Prompts */}
           <div className="space-y-2">
             <span className="text-xs font-semibold text-[var(--text-secondary)] block">
@@ -470,22 +482,53 @@ export const AIMedicalReportGenerator: React.FC<AIMedicalReportGeneratorProps> =
               </p>
             )}
 
+            {voiceError && (
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+                <div className="space-y-1">
+                  <p className="font-semibold">{voiceError}</p>
+                  <p className="text-amber-700">
+                    {selectedLanguage === 'hi'
+                      ? 'सुझाव: सुनिश्चित करें कि ब्राउज़र में माइक्रोफ़ोन की अनुमति दी गई है। आप ऊपर दिए गए उदाहरण लक्षणों में से भी चुन सकते हैं।'
+                      : 'Tip: Ensure microphone permission is allowed in your browser settings. You can also pick from the sample symptoms above.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 type="button"
                 onClick={handleToggleVoice}
+                disabled={voiceState === 'transcribing'}
                 className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer ${
-                  isListening
-                    ? 'bg-[var(--status-danger)] text-white border-[var(--status-danger)]'
+                  voiceState === 'listening'
+                    ? 'bg-[var(--status-danger)] text-white border-[var(--status-danger)] animate-pulse'
+                    : voiceState === 'recording_fallback'
+                    ? 'bg-amber-600 text-white border-amber-600 animate-pulse'
+                    : voiceState === 'transcribing'
+                    ? 'bg-slate-100 text-[var(--text-muted)] border-[var(--border-default)] cursor-wait'
                     : 'bg-white text-[var(--text-primary)] border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]'
                 }`}
               >
-                {isListening ? (
+                {voiceState === 'listening' ? (
                   <MicOff className="w-4 h-4" aria-hidden="true" />
+                ) : voiceState === 'recording_fallback' ? (
+                  <Square className="w-4 h-4 fill-current" aria-hidden="true" />
+                ) : voiceState === 'transcribing' ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <Mic className="w-4 h-4 text-[var(--brand-primary)]" aria-hidden="true" />
                 )}
-                <span>{isListening ? t('voiceInputStop') : t('voiceInputStart')}</span>
+                <span>
+                  {voiceState === 'listening'
+                    ? (selectedLanguage === 'hi' ? 'सुन रहा है... रोकें' : 'Listening... Click to stop')
+                    : voiceState === 'recording_fallback'
+                    ? (selectedLanguage === 'hi' ? 'रिकॉर्डिंग... समाप्त करें' : 'Recording... Click to finish')
+                    : voiceState === 'transcribing'
+                    ? (selectedLanguage === 'hi' ? 'AI द्वारा अनुवाद...' : 'Transcribing voice...')
+                    : t('voiceInputStart')}
+                </span>
               </button>
 
               <button

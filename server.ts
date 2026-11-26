@@ -33,6 +33,46 @@ function getGeminiClient(): GoogleGenAI | null {
   }
 }
 
+function getOpenAIKey(): string | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || apiKey === 'MY_OPENAI_API_KEY' || apiKey.trim() === '') {
+    return null;
+  }
+  return apiKey.trim();
+}
+
+async function callOpenAI(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  jsonMode = false
+): Promise<string | null> {
+  const apiKey = getOpenAIKey();
+  if (!apiKey) return null;
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages,
+        temperature: 0.2,
+        ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
+      })
+    });
+    if (!res.ok) {
+      console.warn('OpenAI API returned status:', res.status);
+      return null;
+    }
+    const data: any = await res.json();
+    return data.choices?.[0]?.message?.content || null;
+  } catch (err) {
+    console.warn('OpenAI API request error:', err);
+    return null;
+  }
+}
+
 // Comprehensive clinical triage fallback engine for rural Indian healthcare
 function fallbackTriage(input: string, _lang: 'en' | 'hi'): Partial<AITriageReport> {
   const lower = input.toLowerCase();
@@ -563,7 +603,58 @@ Return ONLY valid JSON adhering strictly to this schema:
             }
           }
         } catch (genAiErr) {
-          console.warn('Gemini API call failed, falling back to clinical engine:', genAiErr);
+          console.warn('Gemini API call failed, attempting OpenAI or fallback:', genAiErr);
+        }
+      }
+
+      // OpenAI Fallback if Gemini is not configured or failed
+      if (!generatedData && getOpenAIKey()) {
+        try {
+          const targetLangName = normalizedLang === 'hi' ? 'Hindi' : 'English';
+          const prompt = `You are SwasthSetu AI, a formal clinical triage assistant for public primary healthcare in Jabalpur District, Madhya Pradesh, India.
+A patient provided the following health complaint in ${targetLangName}:
+"${text}"
+
+Analyze the complaint and produce a structured clinical triage JSON summary for an attending physician at Panagar Primary Health Centre (PHC), Jabalpur.
+
+LANGUAGE RULES:
+- Provide formal, concise clinical English in all English fields.
+- Provide clear, natural Devanagari Hindi in all Hindi fields (chiefComplaintHi, symptomsHi, durationHi, riskReasonHi, recommendedDepartmentHi, preliminaryAdviceHi).
+- Do NOT use emojis or casual phrasing.
+
+Return ONLY valid JSON adhering strictly to this schema:
+{
+  "detectedLanguage": "${normalizedLang}",
+  "translatedInputEn": "Concise clinical English summary of the patient statement",
+  "chiefComplaint": "Short 3-6 word clinical chief complaint in English",
+  "chiefComplaintHi": "मुख्य शिकायत हिंदी में",
+  "symptoms": ["Symptom 1 in English", "Symptom 2 in English"],
+  "symptomsHi": ["लक्षण 1 हिंदी में", "लक्षण 2 हिंदी में"],
+  "duration": "Estimated duration (e.g. '3 Days')",
+  "durationHi": "अवधि हिंदी में (उदा. '3 दिन')",
+  "riskLevel": "Green" | "Yellow" | "Red",
+  "riskReason": "Clinical rationale for this risk classification in English",
+  "riskReasonHi": "जोखिम वर्गीकरण का नैदानिक कारण हिंदी में",
+  "recommendedDepartment": "e.g. General Medicine (Panagar PHC) | Pediatrics | Obstetrics & Gynecology | Cardiology | Emergency Medicine",
+  "recommendedDepartmentHi": "अनुशंसित विभाग हिंदी में",
+  "preliminaryAdvice": ["Actionable step 1 in English", "Actionable step 2 in English"],
+  "preliminaryAdviceHi": ["मरीज़ के लिए प्राथमिक सलाह 1 हिंदी में", "मरीज़ के लिए प्राथमिक सलाह 2 हिंदी में"],
+  "redFlags": ["Warning sign 1 in English", "Warning sign 2 in English"]
+}`;
+
+          const openAiRes = await callOpenAI([
+            { role: 'system', content: 'You are a formal clinical medical triage engine that responds ONLY in valid JSON format.' },
+            { role: 'user', content: prompt }
+          ], true);
+
+          if (openAiRes) {
+            let cleaned = openAiRes.trim();
+            if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
+            else if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
+            generatedData = JSON.parse(cleaned);
+          }
+        } catch (openAiErr) {
+          console.warn('OpenAI triage call failed, falling back to clinical engine:', openAiErr);
         }
       }
 
@@ -574,11 +665,11 @@ Return ONLY valid JSON adhering strictly to this schema:
       const newReport: AITriageReport = {
         id: `TR-${Date.now().toString().slice(-6)}`,
         patientId: patientId || 'pat-001',
-        patientName: patientName || 'Rameshwar Lal Sharma',
+        patientName: patientName || 'Rameshwar Lal Patel',
         patientAge: patientAge || 58,
         patientGender: patientGender || 'Male',
         patientPhone: patientPhone || '9876543210',
-        village: village || 'Rampur Village',
+        village: village || 'Padariya Village, Panagar (Jabalpur)',
         languageInput: normalizedLang,
         rawInput: text,
         translatedInputEn: generatedData.translatedInputEn || text,
@@ -703,15 +794,135 @@ Keep responses concise and structured (under 100 words).`;
     }
   });
 
-  // Gemini status check
+  // Gemini / OpenAI status check
   app.get('/api/gemini/status', (_req, res) => {
     const apiKey = process.env.GEMINI_API_KEY;
-    const isConfigured = Boolean(apiKey && apiKey !== 'MY_GEMINI_API_KEY' && apiKey.trim() !== '');
+    const isGeminiConfigured = Boolean(apiKey && apiKey !== 'MY_GEMINI_API_KEY' && apiKey.trim() !== '');
+    const openAiKey = getOpenAIKey();
+    const isOpenAiConfigured = Boolean(openAiKey);
+
+    const isConfigured = isGeminiConfigured || isOpenAiConfigured;
+    const provider = isOpenAiConfigured
+      ? 'OpenAI'
+      : isGeminiConfigured
+      ? 'Google AI Studio / Gemini API'
+      : 'Clinical Rule Fallback Engine';
+    const model = isOpenAiConfigured
+      ? 'gpt-4o-mini'
+      : isGeminiConfigured
+      ? 'gemini-2.5-flash'
+      : 'clinical-fallback';
+
     res.json({
       configured: isConfigured,
-      model: 'gemini-2.5-flash',
-      provider: 'Google AI Studio / Gemini API'
+      model,
+      provider
     });
+  });
+
+  // Audio transcription endpoint for voice input fallback (Gemini or OpenAI Whisper)
+  app.post('/api/gemini/transcribe', async (req, res) => {
+    try {
+      const { audioBase64, mimeType = 'audio/webm', language = 'en' } = req.body;
+      if (!audioBase64 || typeof audioBase64 !== 'string') {
+        return res.status(400).json({ error: 'Valid audio data is required' });
+      }
+
+      const client = getGeminiClient();
+      const openAiKey = getOpenAIKey();
+
+      if (!client && !openAiKey) {
+        return res.status(503).json({
+          error:
+            'Neither OPENAI_API_KEY nor GEMINI_API_KEY is configured in .env. Please add your API key in .env, or use Google Chrome / Microsoft Edge for browser speech recognition.',
+          noKey: true
+        });
+      }
+
+      const langMap: Record<string, string> = {
+        hi: 'Hindi (हिंदी)',
+        en: 'English',
+        bn: 'Bengali (বাংলা)',
+        ta: 'Tamil (தமிழ்)',
+        te: 'Telugu (తెలుగు)',
+        gu: 'Gujarati (ગુજરાતી)',
+        kn: 'Kannada (ಕನ್ನಡ)',
+        ml: 'Malayalam (മലയാളം)',
+        pa: 'Punjabi (ਪੰਜਾਬੀ)',
+        or: 'Odia (ଓଡ଼ିଆ)',
+        ur: 'Urdu (اردو)'
+      };
+      const targetLang = langMap[language] || 'Hindi or English';
+      const cleanMime = mimeType.split(';')[0].trim() || 'audio/webm';
+      let transcript = '';
+
+      // 1. Try Gemini if configured
+      if (client) {
+        try {
+          const response = await client.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+              {
+                inlineData: {
+                  mimeType: cleanMime,
+                  data: audioBase64
+                }
+              },
+              `You are a medical speech-to-text transcriber for India's public healthcare system in Jabalpur, Madhya Pradesh.
+Transcribe the speech in this audio recording accurately in ${targetLang}.
+Rules:
+- Return ONLY the exact spoken transcription.
+- Do NOT include markdown quotes, explanations, or introductory commentary.
+- Ensure symptom and health terms are accurately transcribed.`
+            ]
+          });
+          transcript = (response.text || '').trim();
+        } catch (geminiErr) {
+          console.warn('Gemini audio transcription failed, trying OpenAI Whisper if available:', geminiErr);
+        }
+      }
+
+      // 2. Try OpenAI Whisper if Gemini failed or is not configured
+      if (!transcript && openAiKey) {
+        try {
+          const audioBuffer = Buffer.from(audioBase64, 'base64');
+          const ext = cleanMime.includes('webm') ? 'webm' : cleanMime.includes('mp4') ? 'mp4' : cleanMime.includes('ogg') ? 'ogg' : 'wav';
+          const blob = new Blob([audioBuffer], { type: cleanMime });
+          const formData = new FormData();
+          formData.append('file', blob, `recording.${ext}`);
+          formData.append('model', 'whisper-1');
+          if (language === 'hi') {
+            formData.append('language', 'hi');
+          }
+
+          const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${openAiKey}`
+            },
+            body: formData
+          });
+
+          if (whisperRes.ok) {
+            const data: any = await whisperRes.json();
+            transcript = (data.text || '').trim();
+          } else {
+            console.warn('Whisper API returned status:', whisperRes.status);
+          }
+        } catch (whisperErr) {
+          console.warn('Whisper transcription failed:', whisperErr);
+        }
+      }
+
+      if (!transcript) {
+        return res.status(500).json({ error: 'Could not transcribe audio with configured AI service' });
+      }
+
+      res.json({ success: true, transcript, language });
+    } catch (err: any) {
+      console.error('Audio transcription error:', err);
+      res.status(500).json({ error: 'Audio transcription failed', details: err.message });
+    }
   });
 
   // Multilingual Health Assistant Chatbot endpoint
@@ -802,7 +1013,58 @@ CLINICAL GUIDELINES:
             isGeminiPowered = true;
           }
         } catch (chatErr) {
-          console.warn('Gemini chat failed, using fallback clinical engine:', chatErr);
+          console.warn('Gemini chat failed, trying OpenAI or fallback clinical engine:', chatErr);
+        }
+      }
+
+      // OpenAI Fallback if Gemini is not configured or failed
+      if (!replyText && getOpenAIKey()) {
+        try {
+          const systemInstruction = `You are SwasthSetu AI, a formal, trustworthy clinical healthcare awareness assistant supporting India's public health ecosystem in Jabalpur Rural, Madhya Pradesh.
+
+LANGUAGE REQUIREMENT:
+- Respond completely in ${targetLangName}.
+- If the target language is Hindi, reply in clear, formal Devanagari Hindi.
+- If the target language is English, reply in clear, formal, concise English.
+- Do NOT use emojis, exclamation-mark hype, or casual phrasing.
+
+CLINICAL GUIDELINES:
+1. Assessment: Analyze the user's symptoms, duration, and severity clearly in plain clinical terms.
+2. Risk Level: Clearly state the estimated urgency:
+   - Low Risk (Home Care / Routine OPD): Safe supportive care, hydration, rest.
+   - Moderate Risk (Panagar PHC / Sihora CHC): Recommend an in-person physician evaluation with Dr. Rajesh Kumar Patel at Panagar PHC or Sihora CHC.
+   - High Risk (Emergency — Dial 108): For chest pain, severe breathlessness, stroke signs, head trauma, snake bite, or severe pregnancy complications, instruct the user to dial 108 immediately for Victoria District Hospital or NSCB Medical College Jabalpur.
+3. Next Steps: Provide 2–4 concise, evidence-based supportive care steps and warning signs requiring immediate medical attention.
+4. Public Health Context: Reference Panagar PHC services, Jan Aushadhi generic pharmacies, or Ayushman Bharat PM-JAY when applicable.
+5. Disclaimer: Remember this is informational guidance and does not replace a licensed physician's examination. Keep formatting clean with short paragraphs and bullet points.`;
+
+          const openAiMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+            { role: 'system', content: systemInstruction }
+          ];
+
+          if (Array.isArray(history) && history.length > 0) {
+            for (const h of history.slice(-8)) {
+              if (h.text) {
+                openAiMessages.push({
+                  role: h.sender === 'assistant' ? 'assistant' : 'user',
+                  content: h.text
+                });
+              }
+            }
+          }
+
+          openAiMessages.push({
+            role: 'user',
+            content: `Language: ${targetLangName}\nPatient Query: ${message}`
+          });
+
+          const openAiReply = await callOpenAI(openAiMessages);
+          if (openAiReply) {
+            replyText = openAiReply;
+            isGeminiPowered = true;
+          }
+        } catch (openAiChatErr) {
+          console.warn('OpenAI chat failed, falling back to clinical engine:', openAiChatErr);
         }
       }
 
@@ -1028,7 +1290,9 @@ CLINICAL GUIDELINES:
     const {
       patientName,
       patientAge,
+      patientGender,
       patientPhone,
+      relationship,
       facilityId,
       facilityName,
       doctorId,
@@ -1047,14 +1311,16 @@ CLINICAL GUIDELINES:
       id: `apt-${Date.now()}`,
       tokenNumber: nextToken,
       patientId: 'pat-001',
-      patientName: patientName || 'Rameshwar Lal Sharma',
-      patientAge: patientAge || 58,
+      patientName: patientName || 'Rameshwar Lal Patel',
+      patientAge: Number(patientAge) || 58,
+      patientGender: patientGender || 'Male',
       patientPhone: patientPhone || '9876543210',
+      relationship: relationship || 'Self',
       facilityId: facilityId || 'fac-001',
-      facilityName: facilityName || 'Sitapur Primary Health Centre (PHC)',
-      facilityNameHi: 'सीतापुर प्राथमिक स्वास्थ्य केंद्र (PHC)',
+      facilityName: facilityName || 'Panagar Primary Health Centre (PHC)',
+      facilityNameHi: 'पनागर प्राथमिक स्वास्थ्य केंद्र (PHC), जबलपुर',
       doctorId: doctorId || 'doc-001',
-      doctorName: doctorName || 'Dr. Rajesh Kumar',
+      doctorName: doctorName || 'Dr. Rajesh Kumar Patel',
       doctorSpecialty: specialty || 'General Physician',
       appointmentDate: new Date().toLocaleDateString('en-GB', {
         day: '2-digit',
@@ -1109,17 +1375,17 @@ CLINICAL GUIDELINES:
     } = req.body;
 
     const newRx: Prescription = {
-      id: `RX-${Date.now().toString().slice(-6)}`,
+      id: `RX-MP-${Date.now().toString().slice(-6)}`,
       patientId: 'pat-001',
-      patientName: patientName || 'Rameshwar Lal Sharma',
+      patientName: patientName || 'Rameshwar Lal Patel',
       patientAge: patientAge || 58,
       patientGender: patientGender || 'Male',
       abhaId: abhaId || '91-4829-1029-4820',
       doctorId: 'doc-001',
-      doctorName: 'Dr. Rajesh Kumar (MBBS, MD)',
+      doctorName: 'Dr. Rajesh Kumar Patel (MBBS, MD)',
       doctorSpecialty: 'Senior Medical Officer — General Medicine',
-      doctorRegistrationNo: 'MCI-UP-49201',
-      facilityName: 'Sitapur Primary Health Centre (PHC), Govt. of UP',
+      doctorRegistrationNo: 'MPMC-49201',
+      facilityName: 'Panagar Primary Health Centre (PHC), Govt. of Madhya Pradesh',
       date: new Date().toLocaleDateString('en-GB', {
         day: '2-digit',
         month: 'short',

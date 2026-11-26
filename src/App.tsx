@@ -3,6 +3,7 @@ import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OfflineSyncProvider } from './context/OfflineSyncContext';
 import { Navbar } from './components/Navbar';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { Footer } from './components/Footer';
 import { LoginView } from './components/LoginView';
 import { PatientDashboard } from './components/PatientDashboard';
@@ -101,10 +102,10 @@ const MainAppContent: React.FC = () => {
       patientGender: report.patientGender,
       patientPhone: report.patientPhone,
       doctorId: 'doc-001',
-      doctorName: 'Dr. Rajesh Kumar',
+      doctorName: 'Dr. Rajesh Kumar Patel',
       facilityId: 'fac-001',
-      facilityName: 'Sitapur Primary Health Centre (PHC)',
-      facilityNameHi: 'सीतापुर प्राथमिक स्वास्थ्य केंद्र (PHC)',
+      facilityName: 'Panagar Primary Health Centre (PHC)',
+      facilityNameHi: 'पनागर प्राथमिक स्वास्थ्य केंद्र (PHC), जबलपुर',
       appointmentDate: new Date().toLocaleDateString('en-GB', {
         day: '2-digit',
         month: 'short',
@@ -152,7 +153,7 @@ const MainAppContent: React.FC = () => {
         openChatbot={() => setIsChatbotOpen(true)}
       />
 
-      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-3.5 sm:py-6 pb-24 lg:pb-8">
         {currentTab === 'login' && (
           <LoginView
             onSuccessLogin={() => {
@@ -208,19 +209,28 @@ const MainAppContent: React.FC = () => {
       </main>
 
       {/* Restrained Floating Action Button for Symptom Checker */}
-      {!isChatbotOpen && (
-        <div className="fixed bottom-5 right-5 z-40">
+      {!isChatbotOpen && role && currentTab !== 'login' && (
+        <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-25">
           <button
             type="button"
             onClick={() => setIsChatbotOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-3 rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-sm font-semibold shadow-[var(--shadow-elevated)] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-full lg:rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-xs sm:text-sm font-semibold shadow-[0_4px_16px_rgba(15,76,129,0.35)] transition-all active:scale-95 cursor-pointer"
             aria-label={t('heroPrimaryCta')}
           >
             <MessageSquareText className="w-4 h-4 shrink-0" aria-hidden="true" />
-            <span>{t('heroPrimaryCta')}</span>
+            <span className="hidden sm:inline">{t('heroPrimaryCta')}</span>
           </button>
         </div>
       )}
+
+      {/* Native Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+        openReportGenerator={() => setIsReportGenOpen(true)}
+        openChatbot={() => setIsChatbotOpen(true)}
+        activeAppointmentsCount={appointments.length}
+      />
 
       {/* Symptom Checker Chatbot Dialog */}
       <AIHealthAssistant

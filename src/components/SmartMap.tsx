@@ -9,7 +9,8 @@ import {
   Stethoscope,
   Navigation,
   ExternalLink,
-  Search
+  Search,
+  List
 } from 'lucide-react';
 
 interface SmartMapProps {
@@ -40,6 +41,7 @@ export const SmartMap: React.FC<SmartMapProps> = ({
     selectedFacility || facilities[0]
   );
   const [directionsFacilityId, setDirectionsFacilityId] = useState<string | null>(null);
+  const [mobileViewMode, setMobileViewMode] = useState<'list' | 'map'>('list');
 
   const filteredFacilities = facilities.filter((fac) => {
     const matchesType = filterType === 'ALL' || fac.type === filterType;
@@ -66,10 +68,12 @@ export const SmartMap: React.FC<SmartMapProps> = ({
     `https://www.google.com/maps/dir/?api=1&destination=${fac.lat},${fac.lng}`;
 
   const pinPositions = [
-    { top: '36%', left: '58%' },
-    { top: '62%', left: '66%' },
-    { top: '26%', left: '24%' },
-    { top: '70%', left: '28%' }
+    { top: '38%', left: '46%' }, // Panagar PHC (Close to Padariya)
+    { top: '20%', left: '72%' }, // Sihora CHC (North-East)
+    { top: '65%', left: '45%' }, // Victoria District Hospital Jabalpur (South)
+    { top: '78%', left: '28%' }, // NSCB Medical College Garha (South-West)
+    { top: '42%', left: '16%' }, // Patan CHC (West)
+    { top: '48%', left: '42%' }  // Ayushman Arogya Mandir Padariya (Very close to origin)
   ];
 
   return (
@@ -129,6 +133,33 @@ export const SmartMap: React.FC<SmartMapProps> = ({
             />
           </div>
         </div>
+        {/* Mobile View Toggle: List vs Map */}
+        <div className="lg:hidden flex items-center bg-[var(--bg-subtle)] p-1 rounded-lg border border-[var(--border-default)]">
+          <button
+            type="button"
+            onClick={() => setMobileViewMode('list')}
+            className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              mobileViewMode === 'list'
+                ? 'bg-white text-[var(--brand-primary)] shadow-2xs'
+                : 'text-[var(--text-secondary)]'
+            }`}
+          >
+            <List className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>{language === 'hi' ? 'सूची दृश्य' : 'List View'} ({filteredFacilities.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileViewMode('map')}
+            className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              mobileViewMode === 'map'
+                ? 'bg-white text-[var(--brand-primary)] shadow-2xs'
+                : 'text-[var(--text-secondary)]'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>{language === 'hi' ? 'मानचित्र देखें' : 'Map View'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Split: Facility Directory List + Interactive Location Overview */}
@@ -136,7 +167,7 @@ export const SmartMap: React.FC<SmartMapProps> = ({
         {/* Left: Tidy Hospital Finder Cards (6 cols) */}
         <section
           aria-label={t('mapTitle')}
-          className="lg:col-span-6 space-y-3"
+          className={`lg:col-span-6 space-y-3 ${mobileViewMode === 'list' ? 'block' : 'hidden lg:block'}`}
         >
           {filteredFacilities.length === 0 ? (
             <div className="bg-white rounded-xl p-8 border border-[var(--border-default)] text-center space-y-2">
@@ -251,6 +282,7 @@ export const SmartMap: React.FC<SmartMapProps> = ({
                         e.stopPropagation();
                         setActiveFacility(fac);
                         setDirectionsFacilityId(isShowingRoute ? null : fac.id);
+                        setMobileViewMode('map');
                       }}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold text-[var(--text-primary)] bg-white border border-[var(--border-strong)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
                     >
@@ -275,7 +307,7 @@ export const SmartMap: React.FC<SmartMapProps> = ({
                       className="mt-2 p-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-default)] space-y-2 text-xs text-[var(--text-secondary)]"
                     >
                       <div className="font-semibold text-[var(--text-primary)]">
-                        {language === 'hi' ? 'मार्ग विवरण (रामपुर से)' : 'Route Summary from Rampur Village'}
+                        {language === 'hi' ? 'मार्ग विवरण (पड़रिया, पनागर से)' : 'Route Summary from Padariya Village (Panagar, Jabalpur)'}
                       </div>
                       <p className="tabular-nums">
                         {language === 'hi'
@@ -306,16 +338,18 @@ export const SmartMap: React.FC<SmartMapProps> = ({
         {/* Right: District Facility Map Overview (6 cols) */}
         <aside
           aria-label={language === 'hi' ? 'स्वास्थ्य केंद्र मानचित्र' : 'Facility location map'}
-          className="lg:col-span-6 bg-white rounded-xl border border-[var(--border-default)] shadow-[var(--shadow-card)] overflow-hidden lg:sticky lg:top-24"
+          className={`lg:col-span-6 bg-white rounded-xl border border-[var(--border-default)] shadow-[var(--shadow-card)] overflow-hidden lg:sticky lg:top-24 ${
+            mobileViewMode === 'map' ? 'block' : 'hidden lg:block'
+          }`}
         >
           <div className="px-5 py-3.5 bg-[var(--bg-canvas)] border-b border-[var(--border-default)] flex items-center justify-between gap-2 text-xs">
             <span className="font-semibold text-[var(--text-primary)]">
               {language === 'hi'
-                ? 'सीतापुर जिला स्वास्थ्य केंद्र मानचित्र'
-                : 'Sitapur District Public Health Network'}
+                ? 'जबलपुर जिला ग्रामीण स्वास्थ्य केंद्र नेटवर्क'
+                : 'Jabalpur District Rural Public Health Network'}
             </span>
             <span className="font-mono text-[var(--text-muted)] tabular-nums">
-              27.5684° N, 80.6829° E
+              23.2974° N, 79.9861° E
             </span>
           </div>
 
@@ -358,7 +392,7 @@ export const SmartMap: React.FC<SmartMapProps> = ({
                 <MapPin className="w-4 h-4" aria-hidden="true" />
               </div>
               <span className="mt-1 px-2 py-0.5 rounded bg-[var(--text-primary)] text-white text-[11px] font-medium whitespace-nowrap">
-                {language === 'hi' ? 'आपका स्थान (रामपुर)' : 'Your Location (Rampur)'}
+                {language === 'hi' ? 'आपका स्थान (पड़रिया, जबलपुर)' : 'Your Location (Padariya, Jabalpur)'}
               </span>
             </div>
 
