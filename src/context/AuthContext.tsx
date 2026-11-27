@@ -16,7 +16,7 @@ interface AuthContextType {
   patient: PatientProfile | null;
   doctor: DoctorProfile | null;
   welcomeToast: WelcomeToastData | null;
-  loginPatient: (name: string, mobile: string, otp: string, generatedOtp?: string) => boolean;
+  loginPatient: (name: string, mobile: string, password: string) => boolean;
   loginDoctor: (identifier: string, password: string) => boolean;
   quickDemoLogin: (role: 'patient' | 'doctor') => void;
   triggerWelcomeToast: (role: 'patient' | 'doctor', customName?: string) => void;
@@ -65,16 +65,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [role, patient]);
 
-  const loginPatient = (name: string, mobile: string, otp: string, generatedOtp?: string) => {
+  const loginPatient = (name: string, mobile: string, password: string) => {
     const cleanName = name.trim();
     const cleanMobile = mobile.trim();
-    const cleanOtp = otp.trim();
+    const cleanPassword = password.trim();
 
-    const isOtpValid =
-      cleanOtp.length === 6 &&
-      (cleanOtp === generatedOtp || cleanOtp === '123456' || (Boolean(generatedOtp) && cleanOtp === generatedOtp));
-
-    if (cleanName.length >= 2 && cleanMobile.length === 10 && isOtpValid) {
+    if (cleanName.length >= 2 && cleanMobile.length === 10 && cleanPassword.length >= 4) {
       const customPatient: PatientProfile = {
         ...MOCK_PATIENT,
         id: `pat-${cleanMobile.slice(-4)}-${Date.now().toString().slice(-4)}`,
