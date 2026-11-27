@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import {
@@ -19,7 +18,13 @@ const appointments: Appointment[] = [...MOCK_APPOINTMENTS];
 const prescriptions: Prescription[] = [...MOCK_PRESCRIPTIONS];
 
 function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.VITE_GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY ||
+    process.env.API_KEY;
+
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.trim() === '') {
     return null;
   }
@@ -34,7 +39,9 @@ function getGeminiClient(): GoogleGenAI | null {
 }
 
 function getOpenAIKey(): string | null {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey =
+    process.env.OPENAI_API_KEY ||
+    process.env.VITE_OPENAI_API_KEY;
   if (!apiKey || apiKey === 'MY_OPENAI_API_KEY' || apiKey.trim() === '') {
     return null;
   }
@@ -509,6 +516,25 @@ export function createApp() {
   const app = express();
   app.use(express.json({ limit: '10mb' }));
 
+  // Enable CORS for Vercel and cross-origin clients
+  app.use((_req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (_req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    next();
+  });
+
+  // URL normalization: ensure routes match whether Vercel passed /api/... or stripped /api
+  app.use((req, _res, next) => {
+    if (!req.url.startsWith('/api') && req.url !== '/' && !req.url.startsWith('/assets') && !req.url.includes('.')) {
+      req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+    }
+    next();
+  });
+
   // --- API Routes ---
 
   app.get('/api/health', (_req, res) => {
@@ -579,7 +605,7 @@ Return ONLY valid JSON adhering strictly to this schema:
 }`;
 
           const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: prompt,
             config: {
               responseMimeType: 'application/json',
@@ -736,7 +762,7 @@ Keep responses concise and structured (under 100 words).`;
             .join('\n\n');
 
           const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: `${conversationContents}\n\nAssistant (${targetLangName}):`,
             config: {
               systemInstruction,
@@ -808,7 +834,7 @@ Keep responses concise and structured (under 100 words).`;
     const model = isOpenAiConfigured
       ? 'gpt-4o-mini'
       : isGeminiConfigured
-      ? 'gemini-2.5-flash'
+      ? 'gemini-1.5-flash'
       : 'clinical-fallback';
 
     res.json({
@@ -858,7 +884,7 @@ Keep responses concise and structured (under 100 words).`;
       if (client) {
         try {
           const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: [
               {
                 inlineData: {
@@ -998,7 +1024,7 @@ CLINICAL GUIDELINES:
           });
 
           const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: formattedContents,
             config: {
               systemInstruction,
@@ -1435,9 +1461,10 @@ export const app = createApp();
 async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
-  // Vite middleware setup
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
+  // Vite middleware setup (only for local development outside Vercel)
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const { createServer } = await import('vite');
+    const vite = await createServer({
       server: {
         middlewareMode: true,
         allowedHosts: true
